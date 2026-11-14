@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTour } from '@/controllers/TourController';
 import { useSettingsController } from '@/controllers/useSettingsController';
 import { ROLE_LABEL } from '@/models/labels';
 import type { CompanySettings } from '@/models/types';
@@ -33,6 +34,7 @@ interface PasswordValues {
 
 export function SettingsPage() {
   const c = useSettingsController();
+  const { startTour } = useTour();
 
   const profile = useForm<{ name: string }>({ defaultValues: { name: c.user.name } });
   const password = useForm<PasswordValues>();
@@ -188,6 +190,21 @@ export function SettingsPage() {
                 onCheckedChange={(v) => void c.desktop.toggle(v)}
                 aria-label="Notificações do sistema"
               />
+            </S.Option>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tutorial</CardTitle>
+            </CardHeader>
+            <S.Option>
+              <div>
+                <strong>Conhecer o sistema</strong>
+                <span>Um passo a passo rápido pelas principais áreas do Stokar.</span>
+              </div>
+              <Button variant="outline" onClick={startTour}>
+                Ver tutorial
+              </Button>
             </S.Option>
           </Card>
         </Stack>

@@ -1,0 +1,39 @@
+# Blueprint do Render para a stokar-api.
+# No Render: New → Blueprint → escolha este repositório. Os valores marcados com "sync: false"
+# são pedidos na criação (e depois ficam em Environment). Veja stokar-api/README.md → "Deploy no Render".
+services:
+  - type: web
+    name: stokar-api
+    runtime: node
+    plan: free
+    rootDir: stokar-api
+    # --include=dev: o TypeScript é devDependency e o NODE_ENV=production faria o npm pulá-lo
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    # só faz deploy quando algo da API muda (o site e o app ficam no mesmo repositório)
+    buildFilter:
+      paths:
+        - stokar-api/**
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        sync: false
+      - key: DB_MIGRATIONS_RUN
+        value: "true"
+      - key: DB_POOL_MAX
+        value: "10"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      - key: APP_TIMEZONE
+        value: America/Sao_Paulo

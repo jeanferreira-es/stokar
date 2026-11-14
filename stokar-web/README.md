@@ -46,6 +46,26 @@ O primeiro usuário criado em **Criar conta** vira `ADMIN`.
 Para publicar, rode `npm run build` e hospede a pasta `dist/` (Vercel, Netlify ou qualquer servidor estático),
 com `VITE_API_URL` apontando para a API publicada.
 
+## Tutorial de primeiro acesso
+
+No primeiro acesso de cada usuário, um passo a passo (com a lib [driver.js](https://driverjs.com)) apresenta as
+principais áreas: painel, produtos, movimentações, solicitações, oficina, atendimento, cadastros, notificações,
+tema e conta. Os textos mudam conforme o perfil, e no celular os passos apontam para a barra inferior e o botão **Mais**.
+
+- Pode ser pulado a qualquer momento; fechar, pular ou concluir conta como visto.
+- Para rever: **menu da conta → Ver tutorial**, **Mais → Ver tutorial** (celular) ou **Configurações → Tutorial**.
+- O "já visto" fica no `localStorage` do navegador, por usuário (`stokar:tutorial:v1:<id>`).
+
+| Arquivo | Papel |
+|---|---|
+| `models/tour.ts` | passos, textos, perfis e `TOUR_VERSION` |
+| `controllers/TourController.tsx` | abre o tutorial, escolhe o alvo visível e guarda o "já visto" (`useTour().startTour()`) |
+| `styles/TourStyle.ts` | visual do balão com os tokens do tema |
+
+Os alvos são marcados com `data-tour="..."` no layout (ex.: `nav:/produtos`, `group:workshop`, `notifications`).
+Para incluir um passo, marque o elemento e adicione o passo em `models/tour.ts`. Se o conteúdo mudar bastante,
+aumente `TOUR_VERSION` para que todos vejam o tutorial de novo.
+
 ## Arquitetura (MVC adaptado ao React)
 
 ```

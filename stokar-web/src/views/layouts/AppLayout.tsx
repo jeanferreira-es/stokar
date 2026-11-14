@@ -1,8 +1,9 @@
-import { ChevronDown, Ellipsis, LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { ChevronDown, Ellipsis, GraduationCap, LogOut, Moon, Settings, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useCurrentUser } from '@/controllers/AuthController';
 import { useThemeMode } from '@/controllers/ThemeController';
+import { useTour } from '@/controllers/TourController';
 import { useChatUnread } from '@/controllers/useChatController';
 import { useNotificationWatcher } from '@/controllers/useNotificationsController';
 import { ROLE_LABEL } from '@/models/labels';
@@ -28,6 +29,7 @@ export function AppLayout() {
   const user = useCurrentUser();
   const { logout } = useAuth();
   const { mode, toggle } = useThemeMode();
+  const { startTour } = useTour();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const unread = useNotificationWatcher();
@@ -64,6 +66,7 @@ export function AppLayout() {
         <S.TopActions>
           <S.ThemeToggle
             onClick={toggle}
+            data-tour="theme"
             role="switch"
             aria-checked={mode === 'dark'}
             aria-label="Modo escuro"
@@ -81,7 +84,7 @@ export function AppLayout() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <S.UserButton aria-label="Menu da conta">
+              <S.UserButton aria-label="Menu da conta" data-tour="account">
                 <Avatar $size={42}>{initials(user.name)}</Avatar>
                 <div>
                   <small>{greeting()}</small>
@@ -98,6 +101,9 @@ export function AppLayout() {
               <DropdownMenuItem onSelect={() => navigate('/configuracoes')}>
                 <Settings /> Configurações
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={startTour}>
+                <GraduationCap /> Ver tutorial
+              </DropdownMenuItem>
               <DropdownMenuItem $danger onSelect={() => void logout()}>
                 <LogOut /> Sair
               </DropdownMenuItem>
@@ -111,10 +117,10 @@ export function AppLayout() {
           const groupItems = items.filter((i) => i.group === group);
           if (groupItems.length === 0) return null;
           return (
-            <S.SideGroup key={group}>
+            <S.SideGroup key={group} data-tour={`group:${group}`}>
               {groupItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
-                  <S.SideLink to={to} end={to === '/'} title={label}>
+                  <S.SideLink to={to} end={to === '/'} title={label} data-tour={`nav:${to}`}>
                     <Icon aria-hidden />
                     <span>{label}</span>
                     {to === '/notificacoes' && unread > 0 && (
@@ -141,13 +147,14 @@ export function AppLayout() {
 
       <S.BottomNav aria-label="Navegação principal">
         {bottomItems.map(({ to, label, short, icon: Icon }) => (
-          <S.BottomLink key={to} to={to} end={to === '/'} aria-label={label}>
+          <S.BottomLink key={to} to={to} end={to === '/'} aria-label={label} data-tour={`nav:${to}`}>
             <Icon aria-hidden />
             {short ?? label}
           </S.BottomLink>
         ))}
         <S.BottomButton
           type="button"
+          data-tour="nav:more"
           className={moreItems.some((i) => i === section) ? 'active' : undefined}
           onClick={() => setMoreOpen(true)}
         >
@@ -166,6 +173,19 @@ export function AppLayout() {
               </NavLink>
             </li>
           ))}
+          <li>
+            <a
+              href="#tutorial"
+              onClick={(e) => {
+                e.preventDefault();
+                setMoreOpen(false);
+                startTour();
+              }}
+            >
+              <GraduationCap aria-hidden />
+              Ver tutorial
+            </a>
+          </li>
           <li>
             <a
               href="#sair"

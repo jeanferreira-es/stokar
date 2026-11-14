@@ -2,6 +2,13 @@
 
 Segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/). A versão fica em `package.json`.
 
+## 1.3.0 — 2026-11-13
+
+### Adicionado
+- Tutorial de primeiro acesso (driver.js): destaca o menu, o sininho, o tema e a conta, com textos por perfil
+  (equipe, gestores e solicitantes). Abre sozinho uma vez por usuário e pode ser revisto em
+  **menu da conta → Ver tutorial**, em **Mais** (celular) ou em **Configurações → Tutorial**.
+
 ## 1.2.0 — 2026-11-13
 
 ### Adicionado

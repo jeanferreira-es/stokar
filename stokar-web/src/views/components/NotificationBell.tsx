@@ -32,7 +32,7 @@ export function NotificationBell({ unread }: { unread: number }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <CircleButton aria-label={unread > 0 ? `Notificações: ${unread} não lidas` : 'Notificações'}>
+        <CircleButton data-tour="notifications" aria-label={unread > 0 ? `Notificações: ${unread} não lidas` : 'Notificações'}>
           <Bell aria-hidden />
           {unread > 0 && <Dot aria-hidden>{unread > 9 ? '9+' : unread}</Dot>}
         </CircleButton>

@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { AuthController, useAuth } from './controllers/AuthController';
 import { queryClient } from './controllers/shared';
 import { ThemeController, useThemeMode } from './controllers/ThemeController';
+import { TourController } from './controllers/TourController';
 import { MANAGER_ROLES, STAFF_ROLES } from './models/permissions';
 import type { UserRole } from './models/types';
 import { Logo } from './views/components/Logo';
@@ -60,7 +61,11 @@ function Protected() {
   if (status === 'guest') return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   // O perfil de cliente usa o aplicativo: o site é a área da equipe
   if (user?.role === 'CLIENT') return <ClientNotice onLogout={() => void logout()} />;
-  return <AppLayout />;
+  return (
+    <TourController>
+      <AppLayout />
+    </TourController>
+  );
 }
 
 function GuestOnly() {
