@@ -135,6 +135,22 @@ eas build --profile production --platform all      # lojas
 eas submit --profile production
 ```
 
+### APK para testar (Android)
+
+O perfil `preview` do `eas.json` gera um `.apk` instalável direto no celular (sem loja).
+O `.env` não vai para o build (está no `.gitignore`), então a URL da API vem das variáveis do EAS:
+
+```bash
+eas login
+eas init                                             # só na primeira vez: grava o projectId no app.json
+eas env:create --environment preview --name EXPO_PUBLIC_API_URL \
+  --value https://SUA-API.onrender.com/api --visibility plaintext   # só na primeira vez
+npm run build:apk                                    # = eas build --profile preview --platform android
+```
+
+Ao terminar, o EAS mostra um link/QR code para baixar o APK. Os intervalos de consulta e a URL da política
+já estão no `env` do perfil `preview` em `eas.json`. Use uma URL `https://`: o Android bloqueia `http://` em builds de release.
+
 Antes do primeiro build:
 
 1. Troque `ios.bundleIdentifier` e `android.package` em `app.json` (`com.stokar.app` é um valor de exemplo).

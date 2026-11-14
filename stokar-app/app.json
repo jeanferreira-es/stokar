@@ -4,7 +4,9 @@
     "slug": "stokar",
     "scheme": "stokar",
     "version": "1.1.0",
-    "runtimeVersion": { "policy": "appVersion" },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -38,9 +40,20 @@
           "imageWidth": 160,
           "resizeMode": "contain",
           "backgroundColor": "#E9ECEF",
-          "dark": { "backgroundColor": "#101418" }
+          "dark": {
+            "backgroundColor": "#101418"
+          }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c13c1c62-214c-4cc1-b220-8f69ecbc46bb"
+      }
+    },
+    "owner": "fedaykim",
+    "updates": {
+      "url": "https://u.expo.dev/c13c1c62-214c-4cc1-b220-8f69ecbc46bb"
+    }
   }
 }
