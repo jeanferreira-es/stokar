@@ -2,9 +2,9 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { isManager, isStaff } from '@/models/permissions';
-import { invoicesService, serviceRequestsService } from '@/models/services/api';
+import { invoicesService, serviceRequestsService, settingsService } from '@/models/services/api';
 import { REQUEST_STATUSES } from '@/models/labels';
-import type { Customer, RequestPriority, RequestStatus, ServiceRequest, ServiceRequestInput } from '@/models/types';
+import type { Customer, PaymentInput, RequestPriority, RequestStatus, ServiceRequest, ServiceRequestInput } from '@/models/types';
 import { useCurrentUser } from './AuthController';
 import { keys, useAction, useAssigneeOptions, useDebounced } from './shared';
 import { useInvoiceActions } from './useWorkshopController';
@@ -26,6 +26,7 @@ export function useServiceRequestsController() {
   const [status, setStatus] = useState<RequestStatus | 'ALL'>(initialStatus);
   const [priority, setPriority] = useState<RequestPriority | ''>('');
   const [onlyMine, setOnlyMine] = useState(false);
+  const [payment, setPayment] = useState<'' | 'pending' | 'paid'>(params.get('pagamento') === 'pendente' ? 'pending' : '');
   const [creating, setCreating] = useState(params.get('nova') === '1');
 
   const term = useDebounced(search);
@@ -36,6 +37,7 @@ export function useServiceRequestsController() {
     status: status === 'ALL' ? undefined : status,
     priority: priority || undefined,
     assigneeId: onlyMine ? user.id : undefined,
+    payment: payment || undefined,
   };
 
   const list = useQuery({
@@ -63,7 +65,9 @@ export function useServiceRequestsController() {
     rows: list.data?.items,
     meta: list.data?.meta,
     loading: list.isLoading,
-    hasFilters: !!term || status !== 'ALL' || !!priority || onlyMine,
+    hasFilters: !!term || status !== 'ALL' || !!priority || onlyMine || !!payment,
+    payment,
+    setPayment: resetPage(setPayment),
     search,
     setSearch: resetPage(setSearch),
     status,
@@ -84,7 +88,7 @@ export function useServiceRequestsController() {
 }
 
 /* ---------- Detalhe e fluxo de atendimento ---------- */
-export type RequestDialog = 'edit' | 'approve' | 'reject' | 'assign' | 'complete' | 'cancel' | 'invoice' | null;
+export type RequestDialog = 'edit' | 'approve' | 'reject' | 'assign' | 'complete' | 'cancel' | 'invoice' | 'payment' | null;
 
 export function useServiceRequestDetailController(id: string) {
   const user = useCurrentUser();
@@ -113,7 +117,20 @@ export function useServiceRequestDetailController(id: string) {
     complete: status === 'IN_PROGRESS' && staff,
     cancel: (status === 'OPEN' || status === 'APPROVED') && (owner || manager),
     invoice: status === 'COMPLETED' && staff && !!request && !request.invoice,
+    // Pagamento: a equipe registra quando há valor a receber; pode desfazer se lançou por engano
+    payment: staff && request?.payment.status === 'PENDING',
+    undoPayment: staff && request?.payment.status === 'PAID',
   };
+
+  // Regra da oficina (Configurações): só conclui depois do pagamento
+  const company = useQuery({
+    queryKey: [...keys.settings, 'company'],
+    queryFn: () => settingsService.company(),
+    enabled: staff,
+    staleTime: 60_000,
+  });
+  const paymentBlocksCompletion =
+    !!company.data?.requirePaymentToComplete && request?.payment.status === 'PENDING';
 
   const assignees = useAssigneeOptions(manager);
 
@@ -150,6 +167,12 @@ export function useServiceRequestDetailController(id: string) {
   );
   const invoiceActions = useInvoiceActions();
 
+  const registerPayment = useAction(
+    (input: PaymentInput) => serviceRequestsService.registerPayment(id, input),
+    options('Pagamento registrado'),
+  );
+  const undoPayment = useAction(() => serviceRequestsService.undoPayment(id), options('Pagamento desfeito'));
+
   /** Itens sem saldo suficiente impedem a conclusão (a API responde 409). */
   const shortages = (request?.items ?? []).filter((i) => i.product && i.product.available < i.quantity);
 
@@ -158,7 +181,11 @@ export function useServiceRequestDetailController(id: string) {
     loading: detail.isLoading,
     notFound: detail.isError,
     can,
-    hasActions: Object.values(can).some(Boolean),
+    hasActions: [can.edit, can.approve, can.reject, can.assign, can.start, can.complete, can.cancel].some(Boolean),
+    paymentBlocksCompletion,
+    registerPayment: (input: PaymentInput) => registerPayment.mutate(input),
+    undoPayment: () => undoPayment.mutate(),
+    paymentBusy: registerPayment.isPending || undoPayment.isPending,
     shortages,
     assignees: assignees.data ?? [],
     dialog,

@@ -1,5 +1,8 @@
 import type {
   AppNotification,
+  AuthSession,
+  AuthTokens,
+  Category,
   ChatMessage,
   CompanySettings,
   Contract,
@@ -12,28 +15,24 @@ import type {
   CustomerType,
   Invoice,
   InvoiceStatus,
-  Service,
-  ServiceInput,
-  ServiceType,
-  Vehicle,
-  VehicleInput,
-  AuthSession,
-  AuthTokens,
-  Category,
   ListParams,
   MovementSeries,
   MovementType,
   MyRequestsSummary,
   NotificationList,
   Paginated,
+  PaymentInput,
   Product,
   ProductInput,
   ReportSummary,
   RequestPriority,
   RequestStatus,
   SeriesGranularity,
+  Service,
+  ServiceInput,
   ServiceRequest,
   ServiceRequestInput,
+  ServiceType,
   StockAdjustmentInput,
   StockEntryInput,
   StockExitInput,
@@ -42,6 +41,8 @@ import type {
   TopProduct,
   User,
   UserRole,
+  Vehicle,
+  VehicleInput,
 } from '../types';
 import { cleanParams, http } from './http';
 
@@ -132,6 +133,8 @@ export interface RequestFilters extends ListParams {
   priority?: RequestPriority;
   assigneeId?: string;
   customerId?: string;
+  /** pending: a receber · paid: pagas */
+  payment?: 'pending' | 'paid';
 }
 const requestAction =
   <B extends object | void = void>(action: string) =>
@@ -150,6 +153,8 @@ export const serviceRequestsService = {
   start: requestAction('start'),
   complete: requestAction<{ resolutionNotes?: string }>('complete'),
   cancel: requestAction<{ reason?: string }>('cancel'),
+  registerPayment: requestAction<PaymentInput>('payment'),
+  undoPayment: (id: string) => data(http.delete<ServiceRequest>(`/service-requests/${id}/payment`)),
 };
 
 /* ---------- /notifications ---------- */

@@ -1,6 +1,5 @@
 import { Phone } from 'lucide-react-native';
 import * as Linking from 'expo-linking';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useChatThread } from '@/controllers/useChatThread';
@@ -13,10 +12,9 @@ export function ClientChatScreen() {
   const thread = useChatThread();
   const { company } = useAppData();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} avoidKeyboard={false}>
       <S.Header $top={insets.top}>
         <Row $between>
           <Fill>
@@ -39,7 +37,6 @@ export function ClientChatScreen() {
         thread={thread}
         staff={false}
         insideTabs
-        keyboardOffset={tabBarHeight}
         emptyText="Tire dúvidas, peça um orçamento ou combine a entrega do veículo."
       />
     </Screen>

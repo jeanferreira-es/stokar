@@ -14,8 +14,6 @@ export const DayDivider = styled.Text`
 
 /** `$mine`: mensagem de quem está usando o app (lado direito). */
 export const Bubble = styled.View<{ $mine: boolean }>`
-  align-self: ${({ $mine }) => ($mine ? 'flex-end' : 'flex-start')};
-  max-width: 82%;
   margin-bottom: ${({ theme }) => theme.space(2)}px;
   padding: ${({ theme }) => theme.space(2.5)}px ${({ theme }) => theme.space(3.5)}px;
   border-radius: ${({ theme }) => theme.radius.lg}px;

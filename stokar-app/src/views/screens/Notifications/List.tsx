@@ -13,7 +13,7 @@ import type { RootScreenProps } from '@/navigation/types';
 import { openNotificationTarget } from '@/navigation/openNotification';
 import { formatRelative } from '@/utils/format';
 import { notificationVisual } from '../../components/notificationVisual';
-import { Button, Divider, EmptyState, Group, ListItem, Loading, Muted, Screen } from '../../components/ui';
+import { Button, EmptyState, Group, ListItem, Loading, Muted, Screen } from '../../components/ui';
 
 export function NotificationsScreen({ navigation }: RootScreenProps<'Notifications'>) {
   const theme = useTheme();
@@ -57,11 +57,11 @@ export function NotificationsScreen({ navigation }: RootScreenProps<'Notificatio
         keyExtractor={(n) => n.id}
         contentContainerStyle={{ padding: theme.space(4), flexGrow: 1 }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={theme.colors.primary} />}
-        ItemSeparatorComponent={Divider}
+        ItemSeparatorComponent={() => <View style={{ height: theme.space(2.5) }} />}
         renderItem={({ item }) => {
           const v = notificationVisual(item.type);
           return (
-            <Group style={{ borderRadius: 0, opacity: item.readAt ? 0.72 : 1 }}>
+            <Group style={{ opacity: item.readAt ? 0.72 : 1 }}>
               <ListItem
                 icon={v.icon}
                 tone={v.tone}

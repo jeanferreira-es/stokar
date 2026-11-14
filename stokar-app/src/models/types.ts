@@ -168,6 +168,7 @@ export interface ServiceRequest {
   services?: RequestLine[];
   items?: RequestItem[];
   totals?: { services: number; parts: number; discount: number; total: number };
+  payment?: RequestPayment;
   /** Nota emitida (só vem no detalhe) */
   invoice?: { id: string; code: string; total: number; issuedAt: string } | null;
   approvedAt: string | null;
@@ -207,6 +208,45 @@ export interface CompanySettings {
   email: string | null;
   phone: string | null;
   address: string | null;
+  pixKeyType?: PixKeyType | null;
+  pixKey?: string | null;
+  paymentInstructions?: string | null;
+  requirePaymentToComplete?: boolean;
+}
+
+export type PixKeyType = 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
+export type PaymentMethod = 'PIX' | 'CASH' | 'DEBIT_CARD' | 'CREDIT_CARD' | 'TRANSFER' | 'BOLETO' | 'OTHER';
+/** PAID: pago · PENDING: aprovado em diante, com valor e sem pagamento · NONE: sem cobrança */
+export type PaymentStatus = 'PAID' | 'PENDING' | 'NONE';
+
+export interface RequestPayment {
+  status: PaymentStatus;
+  paidAt: string | null;
+  method: PaymentMethod | null;
+  notes?: string | null;
+  confirmedBy?: { id: string; name: string } | null;
+}
+
+/** Um serviço com valor ainda não pago */
+export interface PendingPayment {
+  id: string;
+  code: string;
+  title: string;
+  status: RequestStatus;
+  total: number;
+  createdAt: string;
+  completedAt: string | null;
+  customer: { id: string; name: string } | null;
+  vehicle: { plate: string | null; brand: string | null; model: string } | null;
+  /** "PIX copia e cola" com o valor (null quando a oficina não cadastrou chave e cidade) */
+  pixCode: string | null;
+}
+
+export interface PendingPayments {
+  items: PendingPayment[];
+  count: number;
+  total: number;
+  pix: { key: string | null; keyType: PixKeyType | null; receiverName: string; instructions: string | null };
 }
 
 export interface Conversation {

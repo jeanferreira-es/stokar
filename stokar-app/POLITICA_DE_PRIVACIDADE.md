@@ -120,7 +120,13 @@ Ao fim desses prazos, os dados são eliminados ou anonimizados, a não ser que o
 
 ## 6. Como excluir a sua conta e os seus dados
 
-Você pode excluir a conta **pelo próprio aplicativo**: **Conta → Meus dados → Excluir minha conta**. Ao confirmar com a sua senha:
+Você pode excluir a conta **pelo próprio aplicativo**: **Conta → Meus dados → Excluir minha conta**.
+
+**Serviços em aberto:** enquanto houver um serviço aberto, aprovado ou em andamento, a exclusão fica bloqueada, porque a
+oficina ainda precisa falar com você para executar e entregar o serviço contratado. Aguarde a conclusão ou peça o
+cancelamento à oficina e, depois, exclua a conta.
+
+Ao confirmar com a sua senha:
 
 - o seu acesso é encerrado na hora, em todos os aparelhos;
 - o seu nome, e-mail e telefone são apagados da conta de acesso, que é anonimizada, e os avisos por e-mail param.
@@ -181,5 +187,5 @@ Dúvidas sobre esta política ou sobre os seus dados: fedaykim@gmail.com, os mes
 - **1.1 — 14/11/2026:** identificação do responsável como pessoa física ou empresa e do operador; inclusão da verificação
   de atualizações (Expo), dos avisos por e-mail e de como desligá-los; lista de fornecedores e
   (Render, Vercel, Google e Expo) e base da transferência internacional; prazos de guarda detalhados; detalhamento do que continua guardado após a exclusão
-  da conta; direito de oposição; aviso sobre notas compartilhadas; retirada do consentimento como base legal.
+  da conta; direito de oposição; aviso sobre notas compartilhadas; retirada do consentimento como base legal; bloqueio da exclusão da conta enquanto houver serviço em aberto.
 - **1.0 — 13/11/2026:** primeira versão.

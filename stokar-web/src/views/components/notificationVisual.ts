@@ -1,5 +1,6 @@
 import {
   Ban,
+  Banknote,
   CircleCheck,
   CircleX,
   ClipboardPlus,
@@ -28,4 +29,5 @@ export const NOTIFICATION_VISUAL: Record<NotificationType, { icon: LucideIcon; t
   REQUEST_ASSIGNED: { icon: UserCheck, tone: 'info' },
   INVOICE_ISSUED: { icon: ReceiptText, tone: 'success' },
   CHAT_MESSAGE: { icon: MessageCircle, tone: 'primary' },
+  PAYMENT_CONFIRMED: { icon: Banknote, tone: 'success' },
 };

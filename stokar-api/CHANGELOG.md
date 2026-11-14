@@ -3,6 +3,20 @@
 Segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 A versão fica em `package.json` e em `src/config/version.ts` (exibida em `/` e no Swagger).
 
+## 1.2.0 — 2026-11-14
+
+### Adicionado
+- Pagamento das solicitações: `payment` na resposta (`PAID`, `PENDING`, `NONE`), `POST/DELETE /service-requests/:id/payment`,
+  filtro `payment` na lista e notificação `PAYMENT_CONFIRMED` para o cliente.
+- `GET /service-requests/payments/pending`: o que falta pagar, com a chave PIX da oficina e o "PIX copia e cola"
+  (BR Code com valor) de cada serviço.
+- Configurações da oficina: chave PIX (tipo e chave, validada), cidade, instruções de pagamento e a regra opcional
+  `requirePaymentToComplete` (só conclui depois do pagamento; desligada por padrão).
+- Nota em PDF com a situação do pagamento.
+- Sessão longa do aplicativo: login com `client: "app"` (e cadastro pelo app) emite refresh token de 180 dias
+  (`JWT_APP_REFRESH_EXPIRES_IN`), renovado a cada uso.
+- Migration `Payments1794700000000`.
+
 ## 1.1.2 — 2026-11-13
 
 ### Adicionado

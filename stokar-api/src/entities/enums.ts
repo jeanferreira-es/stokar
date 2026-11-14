@@ -45,6 +45,7 @@ export enum NotificationType {
   REQUEST_ASSIGNED = 'REQUEST_ASSIGNED',
   INVOICE_ISSUED = 'INVOICE_ISSUED',
   CHAT_MESSAGE = 'CHAT_MESSAGE',
+  PAYMENT_CONFIRMED = 'PAYMENT_CONFIRMED',
 }
 
 export enum CustomerType {
@@ -63,6 +64,26 @@ export enum ContractStatus {
 export enum InvoiceStatus {
   ISSUED = 'ISSUED',
   CANCELLED = 'CANCELLED',
+}
+
+/** Como o cliente pagou o serviço */
+export enum PaymentMethod {
+  PIX = 'PIX',
+  CASH = 'CASH',
+  DEBIT_CARD = 'DEBIT_CARD',
+  CREDIT_CARD = 'CREDIT_CARD',
+  TRANSFER = 'TRANSFER',
+  BOLETO = 'BOLETO',
+  OTHER = 'OTHER',
+}
+
+/** Tipo da chave PIX da oficina */
+export enum PixKeyType {
+  CPF = 'CPF',
+  CNPJ = 'CNPJ',
+  EMAIL = 'EMAIL',
+  PHONE = 'PHONE',
+  RANDOM = 'RANDOM',
 }
 
 /** Por onde a solicitação foi aberta */

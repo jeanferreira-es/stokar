@@ -24,6 +24,8 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET deve ter ao menos 16 caracteres'),
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  /** Validade do refresh token do aplicativo (renovada a cada uso) */
+  JWT_APP_REFRESH_EXPIRES_IN: z.string().default('180d'),
 
   ALLOW_PUBLIC_REGISTRATION: bool(true),
   ALLOW_CLIENT_REGISTRATION: bool(true),

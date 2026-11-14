@@ -9,16 +9,18 @@ export function ChangePasswordScreen({ navigation }: RootScreenProps<'ChangePass
   const toast = useToast();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
-  const [errors, setErrors] = useState<{ current?: string; next?: string }>({});
+  const [confirm, setConfirm] = useState('');
+  const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     const found = {
       current: current ? undefined : 'Informe a senha atual',
       next: next.length >= 8 ? undefined : 'A nova senha deve ter ao menos 8 caracteres',
+      confirm: !confirm ? 'Repita a nova senha' : confirm !== next ? 'As senhas não são iguais' : undefined,
     };
     setErrors(found);
-    if (found.current || found.next) return;
+    if (found.current || found.next || found.confirm) return;
 
     setBusy(true);
     try {
@@ -37,6 +39,17 @@ export function ChangePasswordScreen({ navigation }: RootScreenProps<'ChangePass
       <Card>
         <PasswordField label="Senha atual" value={current} onChangeText={setCurrent} error={errors.current} autoComplete="current-password" />
         <PasswordField label="Nova senha" hint="Ao menos 8 caracteres" value={next} onChangeText={setNext} error={errors.next} autoComplete="new-password" />
+        <PasswordField
+          label="Repita a nova senha"
+          value={confirm}
+          onChangeText={(value) => {
+            setConfirm(value);
+            if (errors.confirm) setErrors((e) => ({ ...e, confirm: undefined }));
+          }}
+          error={errors.confirm}
+          autoComplete="new-password"
+          onSubmitEditing={() => void submit()}
+        />
         <Muted>Ao trocar a senha, os outros aparelhos conectados com esta conta são desconectados.</Muted>
       </Card>
     </Screen>

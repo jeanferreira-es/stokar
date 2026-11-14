@@ -1,6 +1,8 @@
 import { ClipboardList, Plus } from 'lucide-react';
 import { useServiceRequestsController } from '@/controllers/useServiceRequestsController';
 import {
+  PAYMENT_STATUS_LABEL,
+  PAYMENT_STATUS_TONE,
   PRIORITY_LABEL,
   PRIORITY_TONE,
   REQUEST_PRIORITIES,
@@ -70,7 +72,17 @@ export function RequestsPage() {
             header: 'Total',
             align: 'right' as const,
             numeric: true,
-            cell: (r: ServiceRequest) => (r.totals && r.totals.total > 0 ? formatCurrency(r.totals.total) : '—'),
+            cell: (r: ServiceRequest) =>
+              r.totals && r.totals.total > 0 ? (
+                <S.TotalCell>
+                  {formatCurrency(r.totals.total)}
+                  {r.payment.status !== 'NONE' && (
+                    <Badge $tone={PAYMENT_STATUS_TONE[r.payment.status]}>{PAYMENT_STATUS_LABEL[r.payment.status]}</Badge>
+                  )}
+                </S.TotalCell>
+              ) : (
+                '—'
+              ),
           },
         ]
       : []),
@@ -118,6 +130,17 @@ export function RequestsPage() {
             </option>
           ))}
         </Select>
+        {c.staff && (
+          <Select
+            aria-label="Pagamento"
+            value={c.payment}
+            onChange={(e) => c.setPayment(e.target.value as '' | 'pending' | 'paid')}
+          >
+            <option value="">Todos os pagamentos</option>
+            <option value="pending">A receber</option>
+            <option value="paid">Pagas</option>
+          </Select>
+        )}
         {c.staff && (
           <S.Check>
             <Switch checked={c.onlyMine} onCheckedChange={c.setOnlyMine} />

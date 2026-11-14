@@ -2,6 +2,15 @@
 
 Segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/). A versão fica em `package.json`.
 
+## 1.4.0 — 2026-11-14
+
+### Adicionado
+- Pagamento na solicitação: cartão **Pagamento** (a receber/pago), **Registrar pagamento** (forma, data e observação)
+  e **Desfazer pagamento**; filtro **A receber / Pagas** e etiqueta na coluna Total da lista.
+- Configurações → **Pagamento**: chave PIX (com validação por tipo), cidade da conta, instruções de pagamento e a regra
+  opcional **Concluir só depois do pagamento** (com aviso no lugar do botão de concluir).
+- Notificação de pagamento confirmado.
+
 ## 1.3.0 — 2026-11-13
 
 ### Adicionado

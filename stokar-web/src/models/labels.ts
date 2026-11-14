@@ -3,12 +3,45 @@ import type {
   CustomerType,
   InvoiceStatus,
   MovementType,
+  PaymentMethod,
+  PaymentStatus,
+  PixKeyType,
   RequestPriority,
   RequestStatus,
   UserRole,
 } from './types';
 
 export type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  PIX: 'PIX',
+  CASH: 'Dinheiro',
+  DEBIT_CARD: 'Cartão de débito',
+  CREDIT_CARD: 'Cartão de crédito',
+  TRANSFER: 'Transferência',
+  BOLETO: 'Boleto',
+  OTHER: 'Outra forma',
+};
+export const PAYMENT_METHODS = Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[];
+
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  PAID: 'Pago',
+  PENDING: 'A receber',
+  NONE: 'Sem cobrança',
+};
+export const PAYMENT_STATUS_TONE: Record<PaymentStatus, Tone> = {
+  PAID: 'success',
+  PENDING: 'warning',
+  NONE: 'neutral',
+};
+
+export const PIX_KEY_TYPE_LABEL: Record<PixKeyType, string> = {
+  CPF: 'CPF',
+  CNPJ: 'CNPJ',
+  EMAIL: 'E-mail',
+  PHONE: 'Celular',
+  RANDOM: 'Chave aleatória',
+};
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   ADMIN: 'Administrador',

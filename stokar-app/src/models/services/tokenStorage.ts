@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import type { AuthTokens } from '../types';
+import type { AuthTokens, User } from '../types';
 
 /**
  * Guarda os tokens da sessão.
@@ -7,6 +7,8 @@ import type { AuthTokens } from '../types';
  * - refresh token: no armazenamento seguro do aparelho (Keychain no iOS, Keystore no Android).
  */
 const REFRESH_KEY = 'stokar.refreshToken';
+/** Último perfil carregado: abre o app logado mesmo sem internet (ou com a API acordando). */
+const USER_KEY = 'stokar.user';
 
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
@@ -35,11 +37,28 @@ export const tokenStorage = {
     }
   },
 
+  async saveUser(user: User): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+    } catch {
+      /* sem cópia local: na próxima abertura sem internet, o app espera a conexão */
+    }
+  },
+
+  async restoreUser(): Promise<User | null> {
+    try {
+      const saved = await SecureStore.getItemAsync(USER_KEY);
+      return saved ? (JSON.parse(saved) as User) : null;
+    } catch {
+      return null;
+    }
+  },
+
   async clear(): Promise<void> {
     accessToken = null;
     refreshToken = null;
     try {
-      await SecureStore.deleteItemAsync(REFRESH_KEY);
+      await Promise.all([SecureStore.deleteItemAsync(REFRESH_KEY), SecureStore.deleteItemAsync(USER_KEY)]);
     } catch {
       /* nada a limpar */
     }

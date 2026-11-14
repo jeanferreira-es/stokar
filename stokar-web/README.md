@@ -168,6 +168,13 @@ O perfil `CLIENT` (cliente da oficina) usa o **aplicativo** (`stokar-app`); ao e
 3. **Contratos**: para empresas, defina vigência, desconto e a tabela de preços negociados.
 4. **Solicitações**: o cliente pede pelo aplicativo ou a equipe usa **Registrar serviço**. A equipe lança serviços, peças e desconto até a conclusão.
 5. **Nota**: com a solicitação concluída, **Emitir nota** gera o PDF (documento sem valor fiscal) e avisa o cliente.
+6. **Pagamento**: no detalhe da solicitação, o cartão **Pagamento** mostra o valor a receber; **Registrar pagamento**
+   (forma, data e observação interna) avisa o cliente. Dá para desfazer um lançamento por engano. Na lista,
+   o filtro **A receber / Pagas** e a etiqueta abaixo do total mostram a situação de cada serviço.
+
+Em **Configurações → Pagamento** (gestores) a oficina cadastra a **chave PIX**, a **cidade da conta** (necessária para o
+"PIX copia e cola" com o valor) e as **instruções de pagamento** que o cliente vê no aplicativo. A opção **Concluir só
+depois do pagamento** vem desligada: ligada, o botão de concluir só aparece com o pagamento registrado.
 
 O **chat** não usa WebSocket (a API roda em serverless): a caixa de entrada é consultada a cada 15 s e a conversa aberta a cada 4 s
 (`VITE_CHAT_INBOX_POLL_MS` e `VITE_CHAT_THREAD_POLL_MS`).

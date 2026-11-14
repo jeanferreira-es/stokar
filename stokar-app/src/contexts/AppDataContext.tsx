@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { isClient, isStaff } from '@/models/permissions';
-import { chatService, customersService, notificationsService, settingsService } from '@/models/services/api';
-import type { AppNotification, CompanySettings, CustomerProfile } from '@/models/types';
+import { chatService, customersService, notificationsService, requestsService, settingsService } from '@/models/services/api';
+import type { AppNotification, CompanySettings, CustomerProfile, PendingPayments } from '@/models/types';
 import { useAuth } from './AuthContext';
 
 /** Intervalo de consulta dos contadores (a API não tem push nem WebSocket). */
@@ -23,6 +23,9 @@ interface AppDataContextValue {
   /** Marca como lida e tira das novidades na hora (sem esperar a próxima consulta) */
   markNotificationRead: (id: string) => void;
   refreshUnread: () => void;
+  /** Cliente: serviços com valor ainda não pago e a chave PIX da oficina */
+  payments: PendingPayments | null;
+  refreshPayments: () => void;
   /** Muda a cada serviço criado/alterado: as listas observam este número para recarregar */
   requestsVersion: number;
   touchRequests: () => void;
@@ -42,12 +45,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [news, setNews] = useState<AppNotification[]>([]);
   const [requestsVersion, setRequestsVersion] = useState(0);
+  const [payments, setPayments] = useState<PendingPayments | null>(null);
   const userRef = useRef(user);
   userRef.current = user;
 
   const reloadProfile = useCallback(async () => {
     if (!isClient(userRef.current)) return;
     setProfile(await customersService.me());
+  }, []);
+
+  const refreshPayments = useCallback(() => {
+    if (!isClient(userRef.current)) return;
+    requestsService
+      .pendingPayments()
+      .then(setPayments)
+      .catch(() => {});
   }, []);
 
   const refreshUnread = useCallback(() => {
@@ -83,23 +95,32 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setUnreadChat(0);
       setUnreadNotifications(0);
       setNews([]);
+      setPayments(null);
       return;
     }
     settingsService.company().then(setCompany).catch(() => {});
     reloadProfile().catch(() => {});
     refreshUnread();
+    refreshPayments();
 
     const timer = setInterval(() => {
       if (AppState.currentState === 'active') refreshUnread();
     }, POLL_MS);
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refreshUnread();
+      if (state !== 'active') return;
+      refreshUnread();
+      refreshPayments();
     });
     return () => {
       clearInterval(timer);
       subscription.remove();
     };
-  }, [user?.id, reloadProfile, refreshUnread]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, reloadProfile, refreshUnread, refreshPayments]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Chegou notificação (ex.: pagamento confirmado, serviço aprovado) ou um serviço mudou: confere as pendências
+  useEffect(() => {
+    if (user) refreshPayments();
+  }, [unreadNotifications, requestsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo(
     () => ({
@@ -112,10 +133,24 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       news,
       markNotificationRead,
       refreshUnread,
+      payments,
+      refreshPayments,
       requestsVersion,
       touchRequests: () => setRequestsVersion((v) => v + 1),
     }),
-    [company, profile, reloadProfile, unreadChat, unreadNotifications, news, markNotificationRead, refreshUnread, requestsVersion],
+    [
+      company,
+      profile,
+      reloadProfile,
+      unreadChat,
+      unreadNotifications,
+      news,
+      markNotificationRead,
+      refreshUnread,
+      payments,
+      refreshPayments,
+      requestsVersion,
+    ],
   );
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

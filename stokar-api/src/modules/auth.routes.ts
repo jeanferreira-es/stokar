@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env';
 import { AppDataSource } from '../database/data-source';
-import { Customer, CustomerType, User, UserRole } from '../entities';
+import { Customer, CustomerType, RequestStatus, ServiceRequest, User, UserRole } from '../entities';
 import { authenticate, currentUser } from '../middlewares/auth';
 import { badRequest, conflict, forbidden, unauthorized } from '../utils/http';
 import { issueTokens, verifyToken } from '../utils/jwt';
@@ -102,19 +102,22 @@ router.post('/register-client', async (req, res) => {
     );
   });
 
-  res.status(201).json({ user: publicUser(user), ...issueTokens(user) });
+  // Cadastro de cliente acontece no aplicativo
+  res.status(201).json({ user: publicUser(user), ...issueTokens(user, { app: true }) });
 });
 
-/** POST /api/auth/login */
+/** POST /api/auth/login — `client: "app"` abre a sessão longa do aplicativo */
 router.post('/login', async (req, res) => {
-  const dto = z.object({ email: emailSchema, password: z.string().min(1) }).parse(req.body);
+  const dto = z
+    .object({ email: emailSchema, password: z.string().min(1), client: z.enum(['web', 'app']).optional() })
+    .parse(req.body);
 
   const user = await withSecrets('u.email = :email', { email: dto.email });
   const valid = user ? await bcrypt.compare(dto.password, user.passwordHash) : false;
   if (!user || !valid) throw unauthorized('E-mail ou senha incorretos');
   if (!user.active) throw forbidden('Usuário desativado');
 
-  res.json({ user: publicUser(user), ...issueTokens(user) });
+  res.json({ user: publicUser(user), ...issueTokens(user, { app: dto.client === 'app' }) });
 });
 
 /** POST /api/auth/refresh — troca um refresh token válido por um novo par de tokens */
@@ -125,7 +128,8 @@ router.post('/refresh', async (req, res) => {
   const user = await withSecrets('u.id = :id', { id: payload.sub });
   if (!user || !user.active || user.tokenVersion !== payload.tv) throw unauthorized('Sessão expirada');
 
-  res.json(issueTokens(user));
+  // Mantém o tipo de sessão (aplicativo ou site) e renova a validade
+  res.json(issueTokens(user, { app: payload.app }));
 });
 
 /** POST /api/auth/logout — invalida todos os tokens emitidos para o usuário */
@@ -175,7 +179,7 @@ router.post('/change-password', authenticate, async (req, res) => {
   user.tokenVersion += 1;
   await users().update(user.id, { passwordHash: user.passwordHash, tokenVersion: user.tokenVersion });
 
-  res.json(issueTokens(user));
+  res.json(issueTokens(user, { app: req.appSession }));
 });
 
 /**
@@ -193,6 +197,24 @@ router.delete('/me', authenticate, async (req, res) => {
 
   const user = await withSecrets('u.id = :id', { id: me.id });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) throw badRequest('Senha incorreta');
+
+  // Não exclui enquanto houver serviço em aberto: a oficina ainda precisa falar com o cliente e entregar o serviço
+  const openStatuses = [RequestStatus.OPEN, RequestStatus.APPROVED, RequestStatus.IN_PROGRESS];
+  const openQuery = AppDataSource.getRepository(ServiceRequest)
+    .createQueryBuilder('r')
+    .where('r.status IN (:...openStatuses)', { openStatuses })
+    .andWhere(user.customerId ? '(r.requester_id = :userId OR r.customer_id = :customerId)' : 'r.requester_id = :userId', {
+      userId: user.id,
+      customerId: user.customerId,
+    });
+  const openCount = await openQuery.getCount();
+  if (openCount > 0) {
+    throw conflict(
+      openCount === 1
+        ? 'Você tem 1 serviço em aberto. Aguarde a conclusão ou peça o cancelamento à oficina antes de excluir a conta.'
+        : `Você tem ${openCount} serviços em aberto. Aguarde a conclusão ou peça o cancelamento à oficina antes de excluir a conta.`,
+    );
+  }
 
   await users().update(user.id, {
     name: 'Conta excluída',

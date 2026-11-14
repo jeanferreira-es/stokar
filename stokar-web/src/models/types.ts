@@ -18,7 +18,8 @@ export type NotificationType =
   | 'REQUEST_CANCELLED'
   | 'REQUEST_ASSIGNED'
   | 'INVOICE_ISSUED'
-  | 'CHAT_MESSAGE';
+  | 'CHAT_MESSAGE'
+  | 'PAYMENT_CONFIRMED';
 
 export interface PageMeta {
   page: number;
@@ -208,6 +209,7 @@ export interface ServiceRequest {
   services?: ServiceRequestLine[];
   items?: ServiceRequestItem[];
   totals?: RequestTotals;
+  payment: RequestPayment;
   /** Nota emitida (só vem no detalhe) */
   invoice?: { id: string; code: string; total: number; issuedAt: string } | null;
   approvedAt: string | null;
@@ -383,6 +385,32 @@ export interface CompanySettings {
   phone: string | null;
   address: string | null;
   invoiceFooter: string | null;
+  pixKeyType: PixKeyType | null;
+  pixKey: string | null;
+  /** Cidade do recebedor: necessária para o "PIX copia e cola" com valor */
+  pixCity: string | null;
+  paymentInstructions: string | null;
+  /** Só deixa concluir o serviço depois de registrar o pagamento */
+  requirePaymentToComplete: boolean;
+}
+
+export type PixKeyType = 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
+export type PaymentMethod = 'PIX' | 'CASH' | 'DEBIT_CARD' | 'CREDIT_CARD' | 'TRANSFER' | 'BOLETO' | 'OTHER';
+/** PAID: pago · PENDING: aprovado em diante, com valor e sem pagamento · NONE: sem cobrança */
+export type PaymentStatus = 'PAID' | 'PENDING' | 'NONE';
+
+export interface RequestPayment {
+  status: PaymentStatus;
+  paidAt: string | null;
+  method: PaymentMethod | null;
+  notes?: string | null;
+  confirmedBy?: Pick<User, 'id' | 'name' | 'email'> | null;
+}
+
+export interface PaymentInput {
+  method: PaymentMethod;
+  notes?: string;
+  paidAt?: string;
 }
 
 export interface Conversation {

@@ -5,7 +5,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { isManager, isStaff } from '@/models/permissions';
 import { invoicesService, requestsService } from '@/models/services/api';
 import { openInvoicePdf } from '@/models/services/invoicePdf';
-import type { ServiceRequest } from '@/models/types';
+import type { PaymentMethod, ServiceRequest } from '@/models/types';
 
 export type RequestAction = 'approve' | 'reject' | 'start' | 'complete' | 'cancel' | 'invoice';
 
@@ -13,12 +13,12 @@ export type RequestAction = 'approve' | 'reject' | 'start' | 'complete' | 'cance
 export function useRequestDetailController(id: string) {
   const user = useCurrentUser();
   const toast = useToast();
-  const { touchRequests } = useAppData();
+  const { touchRequests, company, refreshPayments } = useAppData();
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  const [busy, setBusy] = useState<RequestAction | 'pdf' | null>(null);
+  const [busy, setBusy] = useState<RequestAction | 'pdf' | 'payment' | null>(null);
 
   const load = useCallback(
     async (refresh = false) => {
@@ -87,6 +87,24 @@ export function useRequestDetailController(id: string) {
     }
   };
 
+  /** Equipe: registra que o cliente pagou (o cliente é avisado). */
+  const registerPayment = async (method: PaymentMethod, notes?: string): Promise<boolean> => {
+    setBusy('payment');
+    try {
+      setRequest(await requestsService.registerPayment(id, { method, notes: notes?.trim() || undefined }));
+      setRequest(await requestsService.detail(id));
+      touchRequests();
+      refreshPayments();
+      toast.success('Pagamento registrado');
+      return true;
+    } catch (error) {
+      toast.error(error);
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const openPdf = async () => {
     if (!request?.invoice) return;
     setBusy('pdf');
@@ -99,5 +117,23 @@ export function useRequestDetailController(id: string) {
     }
   };
 
-  return { request, loading, refreshing, notFound, refresh: () => void load(true), staff, can, run, busy, openPdf };
+  const payment = request?.payment;
+  // Regra da oficina (Configurações no site): só conclui depois do pagamento
+  const paymentBlocksCompletion = !!company?.requirePaymentToComplete && payment?.status === 'PENDING';
+
+  return {
+    request,
+    loading,
+    refreshing,
+    notFound,
+    refresh: () => void load(true),
+    staff,
+    can: { ...can, complete: can.complete && !paymentBlocksCompletion },
+    paymentBlocksCompletion: can.complete && paymentBlocksCompletion,
+    canRegisterPayment: staff && payment?.status === 'PENDING',
+    registerPayment,
+    run,
+    busy,
+    openPdf,
+  };
 }

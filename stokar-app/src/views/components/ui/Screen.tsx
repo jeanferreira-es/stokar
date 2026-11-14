@@ -14,16 +14,18 @@ interface ScreenProps {
   onRefresh?: () => void;
   /** Aplica a área segura no topo (telas sem cabeçalho de navegação). */
   topInset?: boolean;
+  /** `false` quando o conteúdo já trata o teclado sozinho (ex.: o chat), para não somar o espaço duas vezes. */
+  avoidKeyboard?: boolean;
 }
 
 /** Moldura das telas: fundo do tema, teclado, área segura e "puxar para atualizar". */
-export function Screen({ children, scroll = true, footer, refreshing, onRefresh, topInset }: ScreenProps) {
+export function Screen({ children, scroll = true, footer, refreshing, onRefresh, topInset, avoidKeyboard = true }: ScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <S.Root style={topInset ? { paddingTop: insets.top } : undefined}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={avoidKeyboard}>
         {scroll ? (
           <ScrollView
             keyboardShouldPersistTaps="handled"

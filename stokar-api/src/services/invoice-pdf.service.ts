@@ -54,7 +54,17 @@ function partyBlock(doc: PDFKit.PDFDocument, title: string, party: InvoiceParty 
 }
 
 /** Gera o PDF da nota de serviço em memória. */
-export function renderInvoicePdf(invoice: Invoice): Promise<Buffer> {
+/** Situação do pagamento no momento em que o PDF é gerado (não faz parte da cópia guardada na nota). */
+export interface InvoicePayment {
+  paidAt: Date | null;
+  methodLabel: string | null;
+  pixKey: string | null;
+  instructions: string | null;
+}
+
+const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: env.APP_TIMEZONE });
+
+export function renderInvoicePdf(invoice: Invoice, payment?: InvoicePayment): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
@@ -170,6 +180,25 @@ export function renderInvoicePdf(invoice: Invoice): Promise<Buffer> {
     doc.moveTo(totalsX, y).lineTo(right, y).lineWidth(1).stroke(COLORS.text);
     y += 8;
     totalRow('Total', currency.format(invoice.total), true);
+
+    /* ---------- Pagamento ---------- */
+    if (payment && invoice.status !== InvoiceStatus.CANCELLED) {
+      const lines: string[] = [];
+      if (payment.paidAt) {
+        lines.push(`Pago em ${dateFormat.format(payment.paidAt)}${payment.methodLabel ? ` (${payment.methodLabel})` : ''}.`);
+      } else {
+        lines.push('Pagamento pendente.');
+        if (payment.pixKey) lines.push(`PIX — chave: ${payment.pixKey}`);
+        if (payment.instructions) lines.push(payment.instructions);
+      }
+      const text = lines.join('\n');
+      doc.font('Helvetica').fontSize(9);
+      ensureSpace(doc.heightOfString(text, { width: contentWidth }) + 40);
+      y += 10;
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.muted).text('PAGAMENTO', MARGIN, y, { characterSpacing: 0.6 });
+      doc.font('Helvetica').fontSize(9).fillColor(COLORS.text).text(text, MARGIN, doc.y + 4, { width: contentWidth });
+      y = doc.y;
+    }
 
     /* ---------- Observações ---------- */
     if (invoice.notes) {

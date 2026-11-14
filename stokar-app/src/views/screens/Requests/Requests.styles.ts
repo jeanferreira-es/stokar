@@ -136,3 +136,30 @@ export const NewsCard = styled.View<{ $pressed: boolean }>`
   border-color: ${({ theme }) => theme.colors.primary};
   background-color: ${({ theme, $pressed }) => ($pressed ? theme.colors.primarySoft : theme.colors.surface)};
 `;
+
+/* ---------- Pagamentos pendentes ---------- */
+export const PayCard = styled.View<{ $pressed: boolean }>`
+  gap: ${({ theme }) => theme.space(2.5)}px;
+  padding: ${({ theme }) => theme.space(4)}px;
+  border-radius: ${({ theme }) => theme.radius.lg}px;
+  background-color: ${({ theme, $pressed }) => ($pressed ? theme.colors.border : theme.colors.warningSoft)};
+`;
+
+export const PayAmount = styled.Text`
+  font-family: ${({ theme }) => theme.fonts.display};
+  font-size: ${({ theme }) => theme.fontSize['2xl']}px;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+export const PixBox = styled.View`
+  gap: ${({ theme }) => theme.space(1)}px;
+  padding: ${({ theme }) => theme.space(3)}px;
+  border-radius: ${({ theme }) => theme.radius.md}px;
+  background-color: ${({ theme }) => theme.colors.surfaceInset};
+`;
+
+export const PixKey = styled.Text`
+  font-family: ${({ theme }) => theme.fonts.semibold};
+  font-size: ${({ theme }) => theme.fontSize.md}px;
+  color: ${({ theme }) => theme.colors.text};
+`;

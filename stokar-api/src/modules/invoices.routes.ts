@@ -18,6 +18,7 @@ import { authorize, currentUser } from '../middlewares/auth';
 import { customerIdOf, isClient } from '../services/access';
 import { getCompanySettings } from '../services/company.service';
 import { renderInvoicePdf } from '../services/invoice-pdf.service';
+import { PAYMENT_LABEL } from '../services/payment-labels';
 import { notifyUsers } from '../services/notification.service';
 import { computeTotals } from '../services/request-totals';
 import { badRequest, conflict, notFound, paginated, paginationSchema, parseId } from '../utils/http';
@@ -191,7 +192,19 @@ router.get('/:id', async (req, res) => {
 /** GET /api/invoices/:id/pdf — a nota em PDF (application/pdf) */
 router.get('/:id/pdf', async (req, res) => {
   const invoice = await findFor(currentUser(req), parseId(req.params.id));
-  const pdf = await renderInvoicePdf(invoice);
+  const [request, settings] = await Promise.all([
+    AppDataSource.getRepository(ServiceRequest).findOne({
+      select: { id: true, paidAt: true, paymentMethod: true },
+      where: { id: invoice.serviceRequestId },
+    }),
+    getCompanySettings(),
+  ]);
+  const pdf = await renderInvoicePdf(invoice, {
+    paidAt: request?.paidAt ?? null,
+    methodLabel: request?.paymentMethod ? PAYMENT_LABEL[request.paymentMethod] : null,
+    pixKey: settings.pixKey,
+    instructions: settings.paymentInstructions,
+  });
   res
     .status(200)
     .set({

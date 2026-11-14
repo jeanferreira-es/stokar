@@ -27,6 +27,8 @@ const page = (name: string): Schema => obj({ items: arr(ref(name)), meta: ref('P
 const ROLE = oneOf('ADMIN', 'MANAGER', 'OPERATOR', 'REQUESTER', 'CLIENT');
 const REQUEST_STATUS = oneOf('OPEN', 'APPROVED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED');
 const PRIORITY = oneOf('LOW', 'MEDIUM', 'HIGH', 'URGENT');
+const PAYMENT_METHOD = oneOf('PIX', 'CASH', 'DEBIT_CARD', 'CREDIT_CARD', 'TRANSFER', 'BOLETO', 'OTHER');
+const PIX_KEY_TYPE = oneOf('CPF', 'CNPJ', 'EMAIL', 'PHONE', 'RANDOM');
 const timestamps = { createdAt: dateTime, updatedAt: dateTime };
 
 const schemas: Record<string, Schema> = {
@@ -250,6 +252,13 @@ const schemas: Record<string, Schema> = {
       }),
     ),
     totals: obj({ services: num(), parts: num(), discount: num(), total: num() }),
+    payment: obj({
+      status: { ...oneOf('PAID', 'PENDING', 'NONE'), description: 'PENDING: aprovada em diante, com valor e sem pagamento; NONE: sem cobrança' },
+      paidAt: nullable(dateTime),
+      method: nullable(PAYMENT_METHOD),
+      notes: nullable(str({ description: 'Observação interna (não vai para o cliente)' })),
+      confirmedBy: nullable(obj({ id: uuid, name: str(), email: str() })),
+    }),
     invoice: nullable(obj({ id: uuid, code: str(), total: num(), issuedAt: dateTime })),
     approvedAt: nullable(dateTime),
     startedAt: nullable(dateTime),
@@ -335,7 +344,31 @@ const schemas: Record<string, Schema> = {
     phone: nullable(str()),
     address: nullable(str()),
     invoiceFooter: nullable(str({ description: 'Texto padrão no rodapé das notas' })),
+    pixKeyType: nullable(PIX_KEY_TYPE),
+    pixKey: nullable(str({ description: 'Chave PIX exibida no aplicativo e nas notas' })),
+    pixCity: nullable(str({ description: 'Cidade do recebedor, exigida para gerar o PIX copia e cola com valor' })),
+    paymentInstructions: nullable(str()),
+    requirePaymentToComplete: { ...bool, description: 'Só deixa concluir o serviço depois do pagamento registrado' },
     updatedAt: dateTime,
+  }),
+  PendingPayments: obj({
+    items: arr(
+      obj({
+        id: uuid,
+        code: str({ example: 'SS-000042' }),
+        title: str(),
+        status: REQUEST_STATUS,
+        total: num(),
+        createdAt: dateTime,
+        completedAt: nullable(dateTime),
+        customer: nullable(obj({ id: uuid, name: str() })),
+        vehicle: nullable(obj({ plate: nullable(str()), brand: nullable(str()), model: str() })),
+        pixCode: nullable(str({ description: '"PIX copia e cola" (BR Code) com o valor e o código do serviço como txid' })),
+      }),
+    ),
+    count: int(),
+    total: num(),
+    pix: obj({ key: nullable(str()), keyType: nullable(PIX_KEY_TYPE), receiverName: str(), instructions: nullable(str()) }),
   }),
   Conversation: obj({
     id: uuid,
@@ -369,6 +402,7 @@ const schemas: Record<string, Schema> = {
       'REQUEST_CANCELLED',
       'REQUEST_ASSIGNED',
       'INVOICE_ISSUED',
+      'PAYMENT_CONFIRMED',
       'CHAT_MESSAGE',
     ),
     title: str(),
@@ -489,8 +523,14 @@ add('post', '/auth/register-client', {
 add('post', '/auth/login', {
   tag: 'Autenticação',
   summary: 'Login',
+  description:
+    'Com `client: "app"` (aplicativo), o refresh token dura `JWT_APP_REFRESH_EXPIRES_IN` (180 dias) e é renovado a cada uso: ' +
+    'a sessão só termina ao sair. Sem ele (site), vale `JWT_REFRESH_EXPIRES_IN` (7 dias).',
   public: true,
-  body: credentials,
+  body: obj(
+    { email: str({ format: 'email' }), password: str({ minLength: 8 }), client: oneOf('web', 'app') },
+    ['email', 'password'],
+  ),
   ok: [200, 'Sessão iniciada', ref('AuthSession')],
   errors: [401, 403],
 });
@@ -744,8 +784,18 @@ add('get', '/service-requests', {
     customerId: uuid,
     vehicleId: uuid,
     contractId: uuid,
+    payment: { ...oneOf('pending', 'paid'), description: 'pending: a receber (aprovadas em diante, sem pagamento); paid: pagas' },
   },
   ok: [200, 'OK', page('ServiceRequest')],
+});
+add('get', '/service-requests/payments/pending', {
+  tag: REQ,
+  summary: 'Pagamentos pendentes (o que falta pagar)',
+  description:
+    'Cliente: os próprios serviços aprovados, em andamento ou concluídos que ainda não foram pagos. Equipe: todos (filtre por `customerId`).\n\n' +
+    'Traz a chave PIX da oficina e, para cada serviço, o "PIX copia e cola" com o valor (quando há chave e cidade cadastradas).',
+  query: { customerId: uuid },
+  ok: [200, 'OK', ref('PendingPayments')],
 });
 add('post', '/service-requests', {
   tag: REQ,
@@ -787,8 +837,23 @@ action(
   'Conclui e dá baixa nas peças (IN_PROGRESS → COMPLETED)',
   STAFF,
   obj({ resolutionNotes: str() }),
-  'Tudo em uma transação: se faltar saldo de qualquer peça, nada é baixado (409).',
+  'Tudo em uma transação: se faltar saldo de qualquer peça, nada é baixado (409). ' +
+    'Com `requirePaymentToComplete` ligado nas configurações, exige o pagamento registrado (409).',
 );
+action(
+  'payment',
+  'Registra o pagamento (aprovada, em andamento ou concluída)',
+  STAFF,
+  obj({ method: PAYMENT_METHOD, notes: str({ maxLength: 500 }), paidAt: { ...dateTime, description: 'Padrão: agora' } }, ['method']),
+  'Avisa o cliente (notificação `PAYMENT_CONFIRMED`). 409 se já estiver pago ou sem valor a receber.',
+);
+add('delete', '/service-requests/{id}/payment', {
+  tag: REQ,
+  summary: 'Desfaz o pagamento registrado',
+  roles: STAFF,
+  ok: [200, 'Solicitação atualizada', ref('ServiceRequest')],
+  errors: [409],
+});
 action('cancel', 'Cancela (OPEN/APPROVED → CANCELLED)', undefined, obj({ reason: str() }), 'Dono da solicitação ou gestor.');
 
 /* Notas de serviço */
@@ -890,9 +955,21 @@ add('get', '/settings/company', { tag: 'Configurações', summary: 'Dados da ofi
 add('put', '/settings/company', {
   tag: 'Configurações',
   summary: 'Atualiza os dados da oficina',
-  description: 'Aparecem no cabeçalho das notas e na tela de contato do aplicativo.',
+  description: 'Aparecem no cabeçalho das notas e na tela de contato do aplicativo. Inclui a chave PIX e a regra de pagamento.',
   roles: MANAGERS,
-  body: obj({ name: str(), document: nullable(str()), email: nullable(str()), phone: nullable(str()), address: nullable(str()), invoiceFooter: nullable(str()) }),
+  body: obj({
+    name: str(),
+    document: nullable(str()),
+    email: nullable(str()),
+    phone: nullable(str()),
+    address: nullable(str()),
+    invoiceFooter: nullable(str()),
+    pixKeyType: nullable(PIX_KEY_TYPE),
+    pixKey: nullable(str({ description: 'Validada conforme o tipo' })),
+    pixCity: nullable(str()),
+    paymentInstructions: nullable(str()),
+    requirePaymentToComplete: bool,
+  }),
   ok: [200, 'OK', ref('CompanySettings')],
 });
 

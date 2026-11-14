@@ -11,6 +11,8 @@ import type {
   CustomerType,
   Invoice,
   Paginated,
+  PaymentMethod,
+  PendingPayments,
   Product,
   RequestStatus,
   Service,
@@ -43,7 +45,9 @@ export interface RegisterClientInput {
 }
 
 export const authService = {
-  login: (body: { email: string; password: string }) => data(http.post<AuthSession>('/auth/login', body)),
+  /** `client: 'app'`: sessão longa do aplicativo (só termina ao tocar em "Sair") */
+  login: (body: { email: string; password: string }) =>
+    data(http.post<AuthSession>('/auth/login', { ...body, client: 'app' })),
   registerClient: (body: RegisterClientInput) => data(http.post<AuthSession>('/auth/register-client', body)),
   logout: () => http.post('/auth/logout'),
   me: () => get<User>('/auth/me'),
@@ -104,6 +108,9 @@ export const requestsService = {
   start: action('start'),
   complete: action<{ resolutionNotes?: string }>('complete'),
   cancel: action<{ reason?: string }>('cancel'),
+  registerPayment: action<{ method: PaymentMethod; notes?: string }>('payment'),
+  /** O que falta pagar (cliente: os próprios serviços) */
+  pendingPayments: () => get<PendingPayments>('/service-requests/payments/pending'),
 };
 
 /* ---------- /invoices ---------- */

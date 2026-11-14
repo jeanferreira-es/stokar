@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form';
 import { useTour } from '@/controllers/TourController';
 import { useSettingsController } from '@/controllers/useSettingsController';
 import { ROLE_LABEL } from '@/models/labels';
-import type { CompanySettings } from '@/models/types';
+import { PIX_KEY_TYPE_LABEL } from '@/models/labels';
+import type { CompanySettings, PixKeyType } from '@/models/types';
 import type { ThemeMode } from '@/styles/themes';
 import { emptyToNull, formatDocument, initials } from '@/utils/format';
 import {
@@ -18,8 +19,10 @@ import {
   FormGrid,
   FormStack,
   Input,
+  Muted,
   PageHeader,
   Segmented,
+  Select,
   Stack,
   Switch,
   Textarea,
@@ -58,7 +61,10 @@ export function SettingsPage() {
       </PageHeader>
 
       {c.canEditCompany && c.company && (
-        <CompanyCard company={c.company} saving={c.savingCompany} onSave={c.saveCompany} />
+        <>
+          <CompanyCard company={c.company} saving={c.savingCompany} onSave={c.saveCompany} />
+          <PaymentCard company={c.company} saving={c.savingCompany} onSave={c.saveCompany} />
+        </>
       )}
 
       <S.Grid>
@@ -213,7 +219,7 @@ export function SettingsPage() {
   );
 }
 
-type CompanyValues = Record<keyof CompanySettings, string>;
+type CompanyValues = Record<'name' | 'document' | 'email' | 'phone' | 'address' | 'invoiceFooter', string>;
 
 /** Dados da oficina: cabeçalho das notas de serviço e contato exibido no aplicativo. */
 function CompanyCard(props: {
@@ -297,6 +303,139 @@ function CompanyCard(props: {
         <DialogFooter>
           <Button type="submit" loading={props.saving}>
             Salvar dados da oficina
+          </Button>
+        </DialogFooter>
+      </FormStack>
+    </Card>
+  );
+}
+
+interface PaymentValues {
+  pixKeyType: PixKeyType | '';
+  pixKey: string;
+  pixCity: string;
+  paymentInstructions: string;
+  requirePaymentToComplete: boolean;
+}
+
+const PIX_PLACEHOLDER: Record<PixKeyType, string> = {
+  CPF: '000.000.000-00',
+  CNPJ: '00.000.000/0000-00',
+  EMAIL: 'financeiro@suaoficina.com.br',
+  PHONE: '(92) 99999-0000',
+  RANDOM: '123e4567-e89b-12d3-a456-426614174000',
+};
+
+/** Confere a chave conforme o tipo (a API faz a mesma validação). */
+function validatePixKey(type: PixKeyType | '', key: string): true | string {
+  const value = key.trim();
+  if (!value) return true;
+  if (!type) return 'Escolha o tipo da chave';
+  const digits = value.replace(/\D/g, '');
+  const ok: Record<PixKeyType, boolean> = {
+    CPF: digits.length === 11,
+    CNPJ: digits.length === 14,
+    EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+    PHONE: digits.length >= 10 && digits.length <= 13,
+    RANDOM: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value),
+  };
+  return ok[type] || `A chave não parece um ${PIX_KEY_TYPE_LABEL[type].toLowerCase()} válido`;
+}
+
+/** Como o cliente paga: chave PIX exibida no aplicativo e nas notas, e a regra de encerramento. */
+function PaymentCard(props: {
+  company: CompanySettings;
+  saving: boolean;
+  onSave: (input: Partial<CompanySettings>) => void;
+}) {
+  const toValues = (c: CompanySettings): PaymentValues => ({
+    pixKeyType: c.pixKeyType ?? '',
+    pixKey: c.pixKey ?? '',
+    pixCity: c.pixCity ?? '',
+    paymentInstructions: c.paymentInstructions ?? '',
+    requirePaymentToComplete: c.requirePaymentToComplete,
+  });
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<PaymentValues>({ defaultValues: toValues(props.company) });
+
+  const { company } = props;
+  useEffect(() => reset(toValues(company)), [company, reset]);
+  const type = watch('pixKeyType');
+  const requirePayment = watch('requirePaymentToComplete');
+
+  return (
+    <Card style={{ marginBottom: 24 }}>
+      <CardHeader>
+        <CardTitle>Pagamento</CardTitle>
+      </CardHeader>
+      <FormStack
+        noValidate
+        onSubmit={handleSubmit((v) =>
+          props.onSave({
+            pixKeyType: v.pixKey.trim() ? v.pixKeyType || null : null,
+            pixKey: emptyToNull(v.pixKey),
+            pixCity: emptyToNull(v.pixCity),
+            paymentInstructions: emptyToNull(v.paymentInstructions),
+            requirePaymentToComplete: v.requirePaymentToComplete,
+          }),
+        )}
+      >
+        <Muted>
+          O cliente vê os valores a pagar na tela inicial do aplicativo, com a chave PIX e o código &quot;PIX copia e cola&quot; de
+          cada serviço. O pagamento cai direto na conta da oficina; depois, registre-o na solicitação.
+        </Muted>
+        <FormGrid>
+          <Field label="Tipo da chave PIX" error={errors.pixKeyType?.message}>
+            <Select {...register('pixKeyType')}>
+              <option value="">Sem PIX</option>
+              {(Object.keys(PIX_KEY_TYPE_LABEL) as PixKeyType[]).map((t) => (
+                <option key={t} value={t}>
+                  {PIX_KEY_TYPE_LABEL[t]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Chave PIX" error={errors.pixKey?.message}>
+            <Input
+              maxLength={140}
+              placeholder={type ? PIX_PLACEHOLDER[type] : 'Escolha o tipo da chave'}
+              disabled={!type}
+              {...register('pixKey', { validate: (v, form) => validatePixKey(form.pixKeyType, v) })}
+            />
+          </Field>
+        </FormGrid>
+        <Field
+          label="Cidade da conta"
+          hint="Exigida pelo PIX para gerar o código com o valor de cada serviço. Sem ela, o cliente vê só a chave."
+        >
+          <Input maxLength={60} placeholder="Ex.: Manaus" disabled={!type} {...register('pixCity')} />
+        </Field>
+        <Field label="Instruções de pagamento" hint="Ex.: aceitamos cartão no balcão; envie o comprovante pelo chat">
+          <Textarea maxLength={2000} {...register('paymentInstructions')} />
+        </Field>
+        <S.Option>
+          <div>
+            <strong>Concluir só depois do pagamento</strong>
+            <span>
+              Desligado, o serviço pode ser concluído e pago depois. Ligado, o botão de concluir só aparece com o pagamento
+              registrado.
+            </span>
+          </div>
+          <Switch
+            checked={requirePayment}
+            onCheckedChange={(v) => setValue('requirePaymentToComplete', v, { shouldDirty: true })}
+            aria-label="Concluir só depois do pagamento"
+          />
+        </S.Option>
+        <DialogFooter>
+          <Button type="submit" loading={props.saving}>
+            Salvar pagamento
           </Button>
         </DialogFooter>
       </FormStack>

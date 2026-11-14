@@ -5,6 +5,7 @@ import { useAuth, useCurrentUser } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { isClient } from '@/models/permissions';
 import { customersService } from '@/models/services/api';
+import { errorMessage } from '@/models/services/http';
 import type { RootScreenProps } from '@/navigation/types';
 import { emptyToNull, formatDocument } from '@/utils/format';
 import { Button, Card, Field, Muted, Screen, Segmented, Sheet, SheetBody, Subheading, TextField } from '../../components/ui';
@@ -29,6 +30,7 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
   const [deleting, setDeleting] = useState(false);
   const [password, setPassword] = useState('');
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>();
 
   useEffect(() => {
     if (!profile) return;
@@ -73,10 +75,12 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
   const confirmDelete = async () => {
     if (!password) return;
     setDeleteBusy(true);
+    setDeleteError(undefined);
     try {
       await deleteAccount(password);
     } catch (error) {
-      toast.error(error);
+      // O aviso (toast) ficaria por trás da janela de confirmação: o erro aparece no próprio campo
+      setDeleteError(errorMessage(error));
       setDeleteBusy(false);
     }
   };
@@ -126,7 +130,7 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
           <Muted>
             Seu acesso é encerrado e seu nome, e-mail e telefone são apagados da conta de acesso. O cadastro usado nas notas (nome, CPF ou
             CNPJ e endereço), os veículos, o histórico de serviços, as notas e as conversas continuam com a oficina pelos prazos da
-            Política de Privacidade.
+            Política de Privacidade. Só é possível excluir quando não houver serviço em aberto.
           </Muted>
           <Button label="Excluir minha conta" variant="danger" icon={Trash2} onPress={() => setDeleting(true)} />
         </Card>
@@ -134,14 +138,34 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
 
       <Sheet
         visible={deleting}
-        onClose={() => setDeleting(false)}
+        onClose={() => {
+          setDeleting(false);
+          setDeleteError(undefined);
+        }}
         title="Excluir a conta?"
         description="Esta ação não pode ser desfeita. Digite sua senha para confirmar."
       >
         <SheetBody>
-          <TextField label="Senha" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
+          <TextField
+            label="Senha"
+            value={password}
+            onChangeText={(value) => {
+              setPassword(value);
+              setDeleteError(undefined);
+            }}
+            error={deleteError}
+            secureTextEntry
+            autoComplete="current-password"
+          />
           <Button label="Excluir definitivamente" variant="danger" loading={deleteBusy} disabled={!password} onPress={() => void confirmDelete()} />
-          <Button label="Manter a conta" variant="ghost" onPress={() => setDeleting(false)} />
+          <Button
+            label="Manter a conta"
+            variant="ghost"
+            onPress={() => {
+              setDeleting(false);
+              setDeleteError(undefined);
+            }}
+          />
         </SheetBody>
       </Sheet>
     </Screen>

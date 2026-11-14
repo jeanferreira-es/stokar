@@ -125,7 +125,10 @@ Envie o access token em todas as rotas protegidas:
 Authorization: Bearer <accessToken>
 ```
 
-- O access token expira em 15 min (`JWT_EXPIRES_IN`); use `POST /api/auth/refresh` com o `refreshToken` (7 dias) para renovar.
+- O access token expira em 15 min (`JWT_EXPIRES_IN`); use `POST /api/auth/refresh` com o `refreshToken` para renovar.
+- O refresh token é reemitido a cada renovação. No site ele vale 7 dias (`JWT_REFRESH_EXPIRES_IN`); no **aplicativo**
+  (login com `client: "app"` ou cadastro pelo app) vale 180 dias (`JWT_APP_REFRESH_EXPIRES_IN`), então a sessão do app
+  só termina ao tocar em "Sair", ao trocar a senha ou após meses sem uso.
 - Logout, troca de senha, mudança de perfil ou desativação **invalidam imediatamente** todos os tokens do usuário.
 
 ## 6. Endpoints
@@ -138,7 +141,7 @@ Erros seguem o formato `{ "error": { "status", "message", "details?" } }`.
 | Método | Rota | Descrição |
 |---|---|---|
 | POST | `/auth/register` | Cadastro `{ name, email, password }` (1º usuário = ADMIN) |
-| POST | `/auth/login` | Login `{ email, password }` → tokens |
+| POST | `/auth/login` | Login `{ email, password, client? }` → tokens (`client: "app"` = sessão longa do aplicativo) |
 | POST | `/auth/refresh` | `{ refreshToken }` → novo par de tokens |
 | POST | `/auth/logout` | Encerra todas as sessões do usuário |
 | GET | `/auth/me` | Dados do usuário autenticado |
@@ -202,7 +205,8 @@ Fluxo: `OPEN → APPROVED → IN_PROGRESS → COMPLETED` (ou `REJECTED` / `CANCE
 | Método | Rota | Perfil | Descrição |
 |---|---|---|---|
 | POST | `/service-requests` | todos | `{ title, description, priority?, dueDate?, customerId?, contractId?, vehicleId?, services?, items?, discount?, origin? }` |
-| GET | `/service-requests` | todos | Filtros: `status`, `priority`, `requesterId`, `assigneeId`, `customerId`, `vehicleId`, `contractId`, `search` |
+| GET | `/service-requests` | todos | Filtros: `status`, `priority`, `requesterId`, `assigneeId`, `customerId`, `vehicleId`, `contractId`, `payment` (`pending`/`paid`), `search` |
+| GET | `/service-requests/payments/pending` | todos | O que falta pagar, com a chave PIX e o "PIX copia e cola" de cada serviço (cliente: só os seus) |
 | GET | `/service-requests/:id` | dono ou equipe | Detalhe com serviços, peças, totais e a nota emitida |
 | PATCH | `/service-requests/:id` | dono (enquanto `OPEN`) ou equipe (até concluir) | `services` e `items` substituem as listas |
 | POST | `/service-requests/:id/approve` | ADMIN, MANAGER | `{ assigneeId? }` |
@@ -211,6 +215,8 @@ Fluxo: `OPEN → APPROVED → IN_PROGRESS → COMPLETED` (ou `REJECTED` / `CANCE
 | POST | `/service-requests/:id/start` | equipe | Inicia o atendimento |
 | POST | `/service-requests/:id/complete` | equipe | `{ resolutionNotes? }` — **dá baixa no estoque dos itens** |
 | POST | `/service-requests/:id/cancel` | dono ou gestor | `{ reason? }` — enquanto `OPEN` ou `APPROVED` |
+| POST | `/service-requests/:id/payment` | equipe | `{ method, notes?, paidAt? }` — registra o pagamento e avisa o cliente |
+| DELETE | `/service-requests/:id/payment` | equipe | Desfaz um pagamento registrado por engano |
 
 - `services`: `[{ serviceId?, description?, quantity?, unitPrice? }]` — mão de obra. O valor vem do catálogo ou do contrato;
   só a equipe informa `unitPrice` ou lança um serviço avulso (sem `serviceId`).
@@ -220,6 +226,22 @@ Fluxo: `OPEN → APPROVED → IN_PROGRESS → COMPLETED` (ou `REJECTED` / `CANCE
 
 Ao concluir, as saídas de todos os itens são lançadas em uma única transação e ficam vinculadas à solicitação.
 Se faltar saldo de qualquer item, nada é baixado e a API responde 409.
+
+#### Pagamento
+
+Cada solicitação traz `payment: { status, paidAt, method, notes, confirmedBy }`:
+
+- `PENDING` — aprovada, em andamento ou concluída, com valor e ainda sem pagamento;
+- `PAID` — a equipe registrou o pagamento (`method`: `PIX`, `CASH`, `DEBIT_CARD`, `CREDIT_CARD`, `TRANSFER`, `BOLETO`, `OTHER`);
+- `NONE` — sem cobrança (aberta, rejeitada, cancelada ou sem valor).
+
+Em `PUT /settings/company` a oficina cadastra a **chave PIX** (`pixKeyType`, `pixKey`), a **cidade** (`pixCity`, exigida
+para o código com valor) e as **instruções de pagamento**. O aplicativo mostra as pendências na tela inicial do cliente,
+com o "PIX copia e cola" (BR Code do Banco Central) já com o valor e o código do serviço como identificador. O dinheiro
+cai direto na conta da oficina; a confirmação continua manual (`POST /service-requests/:id/payment`).
+
+A regra opcional `requirePaymentToComplete` (desligada por padrão) faz o `complete` responder 409 enquanto o pagamento
+não for registrado. Desligada, nada muda no fluxo: o serviço pode ser concluído e pago depois.
 
 ### Notas de serviço — `/invoices`
 
@@ -233,6 +255,7 @@ Se faltar saldo de qualquer item, nada é baixado e a API responde 409.
 
 A nota é um **documento não fiscal** (não substitui a NFS-e). Ela guarda uma cópia dos dados da oficina, do cliente,
 dos serviços, das peças e dos valores no momento da emissão. Os dados da oficina vêm de `PUT /settings/company`.
+O PDF mostra a situação do pagamento no momento em que é gerado ("Pago em…" ou a chave PIX para pagar).
 
 ### Chat — `/chat`
 
@@ -271,6 +294,7 @@ Toda notificação é gravada no banco para o destinatário (canal "in-app") e, 
 | `REQUEST_CREATED` | ADMIN, MANAGER |
 | `REQUEST_APPROVED` / `REJECTED` / `STARTED` / `COMPLETED` / `CANCELLED` | Solicitante e responsável |
 | `REQUEST_ASSIGNED` | Novo responsável |
+| `PAYMENT_CONFIRMED` — pagamento registrado | Cliente, solicitante e responsável |
 
 O alerta de estoque baixo só dispara quando o saldo **cruza** o mínimo, para não repetir a cada saída.
 Falhas em e-mail/webhook são registradas no log e não interrompem a operação.

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { In } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 import { z } from 'zod';
 import { AppDataSource } from '../database/data-source';
 import {
@@ -9,6 +9,7 @@ import {
   MANAGER_ROLES,
   MovementType,
   NotificationType,
+  PaymentMethod,
   Product,
   RequestOrigin,
   RequestPriority,
@@ -26,7 +27,10 @@ import { authorize, currentUser } from '../middlewares/auth';
 import { customerIdOf, isClient, isManager, isStaff } from '../services/access';
 import { notifyRoles, notifyUsers } from '../services/notification.service';
 import { ContractPricing, isContractUsable, loadContractPricing, priceFor } from '../services/pricing.service';
-import { computeTotals } from '../services/request-totals';
+import { getCompanySettings } from '../services/company.service';
+import { PAYMENT_LABEL } from '../services/payment-labels';
+import { buildPixPayload } from '../services/pix.service';
+import { computeTotals, RequestTotals } from '../services/request-totals';
 import { applyMovement, dispatchStockAlerts, StockAlert } from '../services/stock.service';
 import { badRequest, compact, conflict, forbidden, notFound, paginated, paginationSchema, parseId } from '../utils/http';
 import { dateField, money } from '../utils/schemas';
@@ -42,6 +46,22 @@ const STATUS_LABEL: Record<RequestStatus, string> = {
   REJECTED: 'rejeitada',
   CANCELLED: 'cancelada',
 };
+
+/** Status em que o serviço já tem valor a receber (aprovado em diante, sem rejeição/cancelamento). */
+const BILLABLE = [RequestStatus.APPROVED, RequestStatus.IN_PROGRESS, RequestStatus.COMPLETED];
+
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/**
+ * Situação do pagamento:
+ * - PAID: a oficina registrou o pagamento;
+ * - PENDING: serviço aprovado em diante, com valor e ainda não pago;
+ * - NONE: sem cobrança (aberta, rejeitada, cancelada ou sem valor).
+ */
+function paymentStatus(r: ServiceRequest, totals?: RequestTotals): 'PAID' | 'PENDING' | 'NONE' {
+  if (r.paidAt) return 'PAID';
+  return BILLABLE.includes(r.status) && (totals?.total ?? 0) > 0 ? 'PENDING' : 'NONE';
+}
 
 /** Enquanto a solicitação está nestes status, a equipe ainda pode ajustar serviços, peças e valores. */
 const EDITABLE_BY_STAFF = [RequestStatus.OPEN, RequestStatus.APPROVED, RequestStatus.IN_PROGRESS];
@@ -99,8 +119,11 @@ const isOwner = (user: User, r: ServiceRequest) =>
   r.requesterId === user.id || (isClient(user) && !!user.customerId && r.customerId === user.customerId);
 
 function serialize(r: ServiceRequest, viewer: User, invoice?: Invoice | null) {
+  const totals = r.services && r.items ? computeTotals(r) : undefined;
+  // Os campos de pagamento vão agrupados em `payment`
+  const { paidAt, paymentMethod, paymentNotes, paymentConfirmedById, paymentConfirmedBy, ...rest } = r;
   return {
-    ...r,
+    ...rest,
     requester: person(r.requester),
     assignee: person(r.assignee),
     customer: r.customer
@@ -149,7 +172,15 @@ function serialize(r: ServiceRequest, viewer: User, invoice?: Invoice | null) {
           }
         : undefined,
     })),
-    totals: r.services && r.items ? computeTotals(r) : undefined,
+    totals,
+    payment: {
+      status: paymentStatus(r, totals),
+      paidAt,
+      method: paymentMethod,
+      // Observação interna da oficina (ex.: "pago no balcão")
+      notes: isClient(viewer) ? undefined : paymentNotes,
+      confirmedBy: isClient(viewer) ? undefined : person(paymentConfirmedBy),
+    },
     ...(invoice !== undefined
       ? { invoice: invoice ? { id: invoice.id, code: invoice.code, total: invoice.total, issuedAt: invoice.issuedAt } : null }
       : {}),
@@ -166,6 +197,7 @@ async function loadFor(user: User, id: string): Promise<ServiceRequest> {
       customer: true,
       contract: true,
       vehicle: true,
+      paymentConfirmedBy: true,
       services: true,
       items: { product: true },
     },
@@ -392,6 +424,8 @@ router.get('/', async (req, res) => {
       vehicleId: z.string().uuid().optional(),
       contractId: z.string().uuid().optional(),
       search: z.string().trim().optional(),
+      /** pending: aprovadas em diante e ainda não pagas; paid: pagas */
+      payment: z.enum(['pending', 'paid']).optional(),
     })
     .parse(req.query);
   const user = currentUser(req);
@@ -419,6 +453,8 @@ router.get('/', async (req, res) => {
   if (q.contractId) qb.andWhere('r.contractId = :contractId', { contractId: q.contractId });
   if (q.status) qb.andWhere('r.status = :status', { status: q.status });
   if (q.priority) qb.andWhere('r.priority = :priority', { priority: q.priority });
+  if (q.payment === 'paid') qb.andWhere('r.paidAt IS NOT NULL');
+  if (q.payment === 'pending') qb.andWhere('r.paidAt IS NULL AND r.status IN (:...billable)', { billable: BILLABLE });
   if (q.search) {
     qb.andWhere(
       '(r.title ILIKE :s OR r.description ILIKE :s OR customer.name ILIKE :s OR customer.tradeName ILIKE :s OR vehicle.plate ILIKE :s)',
@@ -440,6 +476,73 @@ router.get('/', async (req, res) => {
       q.limit,
     ),
   );
+});
+
+/**
+ * GET /api/service-requests/payments/pending — o que falta pagar.
+ * Cliente: os próprios serviços. Equipe: todos (ou de um cliente, com `customerId`).
+ * Cada item traz o "PIX copia e cola" com o valor, quando a oficina cadastrou chave e cidade.
+ */
+router.get('/payments/pending', async (req, res) => {
+  const q = z.object({ customerId: z.string().uuid().optional() }).parse(req.query);
+  const user = currentUser(req);
+  const settings = await getCompanySettings();
+
+  const qb = requests()
+    .createQueryBuilder('r')
+    .leftJoinAndSelect('r.vehicle', 'vehicle')
+    .leftJoinAndSelect('r.customer', 'customer')
+    .leftJoinAndSelect('r.services', 'services')
+    .leftJoinAndSelect('r.items', 'items')
+    .where('r.paidAt IS NULL AND r.status IN (:...billable)', { billable: BILLABLE });
+
+  if (isStaff(user)) {
+    if (q.customerId) qb.andWhere('r.customerId = :customerId', { customerId: q.customerId });
+  } else if (isClient(user) && user.customerId) {
+    qb.andWhere('(r.requesterId = :me OR r.customerId = :mine)', { me: user.id, mine: user.customerId });
+  } else {
+    qb.andWhere('r.requesterId = :me', { me: user.id });
+  }
+
+  const found = await qb.orderBy('r.createdAt', 'ASC').take(200).getMany();
+  const pixReady = !!settings.pixKey && !!settings.pixCity;
+
+  const items = found
+    .map((r) => ({ r, total: computeTotals(r).total }))
+    .filter(({ total }) => total > 0)
+    .map(({ r, total }) => ({
+      id: r.id,
+      code: r.code,
+      title: r.title,
+      status: r.status,
+      total,
+      createdAt: r.createdAt,
+      completedAt: r.completedAt,
+      customer: r.customer ? { id: r.customer.id, name: r.customer.name } : null,
+      vehicle: r.vehicle ? { plate: r.vehicle.plate, brand: r.vehicle.brand, model: r.vehicle.model } : null,
+      pixCode: pixReady
+        ? buildPixPayload({
+            key: settings.pixKey!,
+            keyType: settings.pixKeyType,
+            receiverName: settings.name,
+            city: settings.pixCity!,
+            amount: total,
+            txid: r.code,
+          })
+        : null,
+    }));
+
+  res.json({
+    items,
+    count: items.length,
+    total: Math.round(items.reduce((sum, i) => sum + i.total, 0) * 100) / 100,
+    pix: {
+      key: settings.pixKey,
+      keyType: settings.pixKeyType,
+      receiverName: settings.name,
+      instructions: settings.paymentInstructions,
+    },
+  });
 });
 
 router.get('/:id', async (req, res) => {
@@ -625,6 +728,7 @@ router.post('/:id/complete', authorize(...STAFF_ROLES), async (req, res) => {
   const id = parseId(req.params.id);
   const dto = z.object({ resolutionNotes: z.string().trim().max(10_000).optional() }).parse(req.body ?? {});
   const user = currentUser(req);
+  const { requirePaymentToComplete } = await getCompanySettings();
 
   const alerts = await AppDataSource.transaction(async (manager) => {
     const request = await manager.getRepository(ServiceRequest).findOne({
@@ -638,6 +742,17 @@ router.post('/:id/complete', authorize(...STAFF_ROLES), async (req, res) => {
       where: { serviceRequestId: id },
       order: { productId: 'ASC' }, // ordem fixa de travamento evita deadlocks
     });
+
+    // Regra opcional da oficina (Configurações): só encerra depois do pagamento
+    if (requirePaymentToComplete && !request.paidAt) {
+      const services = await manager.getRepository(ServiceRequestService).find({ where: { serviceRequestId: id } });
+      const { total } = computeTotals({ services, items, discount: request.discount });
+      if (total > 0) {
+        throw conflict(
+          `Registre o pagamento de ${brl.format(total)} antes de concluir: a oficina exige o pagamento para encerrar o serviço`,
+        );
+      }
+    }
 
     const stockAlerts: Array<StockAlert | undefined> = [];
     for (const item of items) {
@@ -670,6 +785,52 @@ router.post('/:id/complete', authorize(...STAFF_ROLES), async (req, res) => {
     data: { serviceRequestId: updated.id, code: updated.code, status: updated.status },
   });
   res.json(serialize(updated, user, null));
+});
+
+const paymentSchema = z.object({
+  method: z.nativeEnum(PaymentMethod),
+  notes: z.string().trim().max(500).optional(),
+  /** Data do pagamento; sem ela, agora */
+  paidAt: z.coerce.date().max(new Date(Date.now() + 60_000), 'A data do pagamento não pode estar no futuro').optional(),
+});
+
+/** POST /:id/payment — equipe registra que o cliente pagou (aprovada, em andamento ou concluída) */
+router.post('/:id/payment', authorize(...STAFF_ROLES), async (req, res) => {
+  const id = parseId(req.params.id);
+  const dto = paymentSchema.parse(req.body ?? {});
+  const user = currentUser(req);
+
+  const current = await loadFor(user, id);
+  assertStatus(current, ...BILLABLE);
+  if (current.paidAt) throw conflict('O pagamento desta solicitação já foi registrado');
+  const { total } = computeTotals(current);
+  if (total <= 0) throw conflict('Esta solicitação não tem valor a receber');
+
+  const result = await requests().update(
+    { id, paidAt: IsNull() },
+    { paidAt: dto.paidAt ?? new Date(), paymentMethod: dto.method, paymentNotes: dto.notes ?? null, paymentConfirmedById: user.id },
+  );
+  if (!result.affected) throw conflict('O pagamento desta solicitação já foi registrado');
+
+  const updated = await loadFor(user, id);
+  await notifyUsers(await audience(updated, user.id), {
+    type: NotificationType.PAYMENT_CONFIRMED,
+    title: `Pagamento confirmado — ${updated.code}`,
+    message: `Recebemos o pagamento de ${brl.format(total)} (${PAYMENT_LABEL[dto.method]}) do serviço "${updated.title}". Obrigado!`,
+    data: { serviceRequestId: updated.id, code: updated.code, status: updated.status },
+  });
+  res.json(await respond(user, id));
+});
+
+/** DELETE /:id/payment — desfaz um pagamento registrado por engano */
+router.delete('/:id/payment', authorize(...STAFF_ROLES), async (req, res) => {
+  const id = parseId(req.params.id);
+  const user = currentUser(req);
+  const current = await loadFor(user, id);
+  if (!current.paidAt) throw conflict('Esta solicitação não tem pagamento registrado');
+
+  await requests().update(id, { paidAt: null, paymentMethod: null, paymentNotes: null, paymentConfirmedById: null });
+  res.json(await respond(user, id));
 });
 
 /** POST /:id/cancel — dono ou gestor, enquanto não estiver em andamento */

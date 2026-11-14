@@ -18,6 +18,7 @@ import { InboxScreen } from '@/views/screens/Chat/Inbox';
 import { StaffChatScreen } from '@/views/screens/Chat/StaffChat';
 import { CustomerFormScreen } from '@/views/screens/Customers/Form';
 import { InvoicesScreen } from '@/views/screens/Invoices/List';
+import { PaymentsScreen } from '@/views/screens/Payments';
 import { NotificationsScreen } from '@/views/screens/Notifications/List';
 import { RequestDetailScreen } from '@/views/screens/Requests/Detail';
 import { RequestsListScreen } from '@/views/screens/Requests/List';
@@ -130,6 +131,7 @@ export function RootNavigator() {
           <RootStack.Screen name="Vehicles" component={VehiclesScreen} options={{ title: 'Meus veículos' }} />
           <RootStack.Screen name="VehicleForm" component={VehicleFormScreen} options={{ title: 'Veículo' }} />
           <RootStack.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Notas de serviço' }} />
+          <RootStack.Screen name="Payments" component={PaymentsScreen} options={{ title: 'Pagamentos' }} />
           <RootStack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notificações' }} />
           <RootStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Meus dados' }} />
           <RootStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Trocar senha' }} />

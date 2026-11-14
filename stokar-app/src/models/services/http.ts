@@ -63,7 +63,8 @@ export function refreshSession(): Promise<string> {
   if (!refreshToken) return Promise.reject(new ApiError(401, 'Sessão expirada'));
 
   refreshing = axios
-    .post<AuthTokens>(`${API_URL}/auth/refresh`, { refreshToken }, { timeout: 20_000 })
+    // Tempo maior: no plano gratuito do Render a API leva até ~1 min para "acordar"
+    .post<AuthTokens>(`${API_URL}/auth/refresh`, { refreshToken }, { timeout: 60_000 })
     .then(async ({ data }) => {
       await tokenStorage.setTokens(data);
       return data.accessToken;

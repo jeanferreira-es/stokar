@@ -15,7 +15,7 @@ import {
 import { numericTransformer } from '../utils/numeric';
 import { Contract } from './Contract';
 import { Customer } from './Customer';
-import { RequestOrigin, RequestPriority, RequestStatus } from './enums';
+import { PaymentMethod, RequestOrigin, RequestPriority, RequestStatus } from './enums';
 import { ServiceRequestItem } from './ServiceRequestItem';
 import { ServiceRequestService } from './ServiceRequestService';
 import { Vehicle } from './Vehicle';
@@ -108,6 +108,23 @@ export class ServiceRequest {
   /** Materiais do estoque necessários; baixados automaticamente na conclusão */
   @OneToMany(() => ServiceRequestItem, (item) => item.serviceRequest, { cascade: ['insert'] })
   items?: ServiceRequestItem[];
+
+  /** Pagamento confirmado pela oficina (vazio = ainda não pago) */
+  @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
+  paidAt!: Date | null;
+
+  @Column({ name: 'payment_method', type: 'varchar', length: 20, nullable: true })
+  paymentMethod!: PaymentMethod | null;
+
+  @Column({ name: 'payment_notes', type: 'varchar', length: 500, nullable: true })
+  paymentNotes!: string | null;
+
+  @Column({ name: 'payment_confirmed_by_id', type: 'uuid', nullable: true })
+  paymentConfirmedById!: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'payment_confirmed_by_id' })
+  paymentConfirmedBy?: User | null;
 
   @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
   approvedAt!: Date | null;

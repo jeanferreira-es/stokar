@@ -81,11 +81,26 @@ escritos em styled-components.
 
 | Aba | Cliente (`CLIENT`) | Equipe |
 |---|---|---|
-| Serviços | os pedidos dele · **Pedir serviço** | todos os serviços, com busca e filtro · **Registrar serviço** |
+| Serviços | **Pagamento pendente** (quando houver) · os pedidos dele · **Pedir serviço** | todos os serviços, com busca e filtro · **Registrar serviço** · **Registrar pagamento** no detalhe |
 | Chat / Conversas | conversa com a oficina | caixa de entrada com os clientes |
 | Conta | dados, veículos, notas, notificações, tema, política de privacidade, excluir conta | dados, notas, notificações, tema |
 
 O perfil `REQUESTER` (solicitante interno do almoxarifado) usa o site; no app ele vê só um aviso.
+
+### Pagamentos
+
+Quando há serviço aprovado, em andamento ou concluído ainda não pago, a tela inicial do cliente mostra o cartão
+**Pagamento pendente** com o total. A tela **Pagamentos** traz a chave PIX da oficina (com botão de copiar), as
+instruções de pagamento e, para cada serviço, o botão **Copiar PIX copia e cola**, com o valor já preenchido para
+colar no app do banco. O pagamento cai direto na conta da oficina; quando a equipe registra, o cliente recebe um aviso.
+A chave, a cidade e as instruções são cadastradas no site, em **Configurações → Pagamento**.
+
+### Sessão e login
+
+- A sessão do app só termina ao tocar em **Sair** (ou ao trocar a senha em outro aparelho). O refresh token do app vale
+  180 dias e é renovado a cada uso; sem internet ou com a API "acordando", o app abre com o último perfil salvo.
+- A tela de login mostra **Entrar como** com as contas que já entraram no aparelho (nome e e-mail, no máximo 4).
+  Tocar preenche o e-mail e leva o foco para a senha, que continua sendo digitada. O **×** remove a conta da lista.
 
 ## Chat e notificações
 
@@ -93,6 +108,9 @@ A API roda em ambiente serverless e não tem WebSocket nem push. O app consulta:
 
 - a conversa aberta a cada 4 s (`EXPO_PUBLIC_CHAT_POLL_MS`);
 - os contadores de não lidas a cada 20 s, com o app em primeiro plano (`EXPO_PUBLIC_UNREAD_POLL_MS`).
+
+A aba **Chat** continua montada depois de aberta, mas a conversa só é marcada como lida quando a aba está na tela e o app
+em primeiro plano: até lá, o aviso fica na aba e no sininho.
 
 Com o app fechado, o cliente não recebe aviso no celular (só e-mail, se a API tiver SMTP configurado).
 Push de verdade é o próximo passo natural (`expo-notifications` + uma rota para guardar o token do aparelho).

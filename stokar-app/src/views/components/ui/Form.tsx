@@ -1,6 +1,6 @@
 import { ChevronDown, Eye, EyeOff } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
-import { Pressable, type TextInputProps } from 'react-native';
+import { useState, type ReactNode, type Ref, type ComponentRef } from 'react';
+import { Pressable, type TextInput, type TextInputProps } from 'react-native';
 import { useTheme } from 'styled-components/native';
 import * as S from './Form.styles';
 import { Label } from './Text';
@@ -25,6 +25,8 @@ export function Field({ label, error, hint, children }: FieldProps) {
 
 export interface InputProps extends TextInputProps {
   invalid?: boolean;
+  /** Referência ao campo (ex.: levar o foco para a senha) */
+  ref?: Ref<ComponentRef<typeof TextInput>>;
 }
 
 export function Input({ invalid, multiline, ...rest }: InputProps) {

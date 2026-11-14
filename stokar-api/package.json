@@ -1,6 +1,6 @@
 {
   "name": "stokar-api",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "API do Stokar: estoque, oficina (clientes, contratos, serviços e notas) e chat com clientes",
   "private": true,
   "engines": {

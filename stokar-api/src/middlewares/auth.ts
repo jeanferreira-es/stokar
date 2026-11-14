@@ -9,6 +9,8 @@ declare global {
   namespace Express {
     interface Request {
       user?: User;
+      /** A sessão foi aberta pelo aplicativo (tokens de longa duração) */
+      appSession?: boolean;
     }
   }
 }
@@ -30,6 +32,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   if (user.tokenVersion !== payload.tv) throw unauthorized('Sessão encerrada. Faça login novamente');
 
   req.user = user;
+  req.appSession = !!payload.app;
   next();
 }
 

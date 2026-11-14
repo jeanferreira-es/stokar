@@ -7,6 +7,7 @@ import { useRequestsController, type StatusFilter } from '@/controllers/useReque
 import { REQUEST_STATUSES, STATUS_LABEL } from '@/models/labels';
 import { NewsSection } from '../../components/NewsSection';
 import { NotificationBell } from '../../components/NotificationBell';
+import { PaymentsSummary } from '../../components/PaymentsSummary';
 import { RequestCard } from '../../components/RequestCard';
 import { Chip, EmptyState, Input, Loading, Row, Screen, Title } from '../../components/ui';
 import * as S from './Requests.styles';
@@ -67,7 +68,12 @@ export function RequestsListScreen() {
               onPress={() => navigation.navigate('RequestDetail', { id: item.id })}
             />
           )}
-          ListHeaderComponent={NewsSection}
+          ListHeaderComponent={
+            <>
+              {!c.staff && <PaymentsSummary />}
+              <NewsSection />
+            </>
+          }
           ListFooterComponent={c.loadingMore ? <ActivityIndicator color={theme.colors.primary} /> : undefined}
           ListEmptyComponent={
             <EmptyState

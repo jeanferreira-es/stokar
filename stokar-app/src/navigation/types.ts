@@ -12,6 +12,8 @@ export type RootStackParamList = {
   Vehicles: undefined;
   VehicleForm: { vehicle?: Vehicle } | undefined;
   Invoices: undefined;
+  /** Cliente: pagamentos pendentes, chave PIX e códigos copia e cola */
+  Payments: undefined;
   Notifications: undefined;
   Profile: undefined;
   ChangePassword: undefined;

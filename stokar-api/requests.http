@@ -131,6 +131,24 @@ Content-Type: application/json
   "items": [{ "productId": "UUID_DO_PRODUTO", "quantity": 2 }]
 }
 
+### Configurar PIX e a regra de pagamento (gestores)
+PUT {{base}}/settings/company
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "pixKeyType": "PHONE", "pixKey": "(92) 99999-1234", "pixCity": "Manaus", "paymentInstructions": "Envie o comprovante pelo chat.", "requirePaymentToComplete": false }
+
+### O que falta pagar (cliente vê só os seus)
+GET {{base}}/service-requests/payments/pending
+Authorization: Bearer {{token}}
+
+### Registrar o pagamento (equipe)
+POST {{base}}/service-requests/UUID_DA_SOLICITACAO/payment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "method": "PIX", "notes": "Conferido no extrato" }
+
 ### Emitir a nota (solicitação concluída)
 POST {{base}}/invoices
 Authorization: Bearer {{token}}

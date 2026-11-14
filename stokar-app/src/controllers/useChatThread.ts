@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -33,6 +34,14 @@ export function useChatThread(conversationId?: string) {
   const [sending, setSending] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const latest = useRef<string | undefined>(undefined);
+  // A aba do chat continua montada nas abas inferiores: "lida" só quando a conversa está na tela
+  const focused = useIsFocused();
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => setAppActive(state === 'active'));
+    return () => subscription.remove();
+  }, []);
 
   // Cliente: descobre (ou cria) a própria conversa
   useEffect(() => {
@@ -68,8 +77,6 @@ export function useChatThread(conversationId?: string) {
         latest.current = result.items[result.items.length - 1].createdAt;
         setMessages((list) => merge(list, result.items));
       }
-      // Com a conversa aberta, o que chegou já foi lido
-      if (result.conversation.unread > 0) void chatService.markRead(id).then(refreshUnread).catch(() => {});
     };
 
     chatService
@@ -93,6 +100,22 @@ export function useChatThread(conversationId?: string) {
       clearInterval(timer);
     };
   }, [id, attempt, refreshUnread]);
+
+  /*
+   * Marca como lida só quando a conversa está visível: aba/tela focada e app em primeiro plano.
+   * Até lá, o aviso continua na aba "Chat" e no sininho, mesmo com as mensagens já carregadas.
+   */
+  const unread = conversation?.unread ?? 0;
+  useEffect(() => {
+    if (!id || !focused || !appActive || unread === 0) return;
+    void chatService
+      .markRead(id)
+      .then(() => {
+        setConversation((current) => (current ? { ...current, unread: 0 } : current));
+        refreshUnread();
+      })
+      .catch(() => {});
+  }, [id, focused, appActive, unread, refreshUnread]);
 
   const loadOlder = useCallback(async () => {
     if (!id || messages.length === 0) return;

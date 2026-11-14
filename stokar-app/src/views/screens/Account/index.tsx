@@ -118,6 +118,7 @@ export function AccountScreen() {
         <Logo size={22} />
         <Muted>versão {APP_VERSION}</Muted>
       </Row>
+      <Muted style={{ textAlign: 'center', marginTop: -8 }}>by Fedaykim</Muted>
 
       <Sheet visible={confirmLogout} onClose={() => setConfirmLogout(false)} title="Sair da conta?" description="Você precisará entrar de novo com e-mail e senha.">
         <SheetBody>

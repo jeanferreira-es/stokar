@@ -194,3 +194,11 @@ export const InvoiceLine = styled.div`
   strong { display: block; font-family: ${({ theme }) => theme.font.display}; font-weight: ${({ theme }) => theme.fontWeight.semibold}; }
   small { color: ${({ theme }) => theme.colors.textSubtle}; }
 `;
+
+/** Total na tabela com a situação do pagamento logo abaixo */
+export const TotalCell = styled.span`
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: ${({ theme }) => theme.space(1)};
+`;

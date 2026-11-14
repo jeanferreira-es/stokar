@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Ban,
+  Banknote,
   Check,
   CircleCheck,
   FileQuestion,
@@ -9,6 +10,7 @@ import {
   Play,
   ReceiptText,
   TriangleAlert,
+  Undo2,
   UserCheck,
   X,
 } from 'lucide-react';
@@ -18,9 +20,18 @@ import {
   useServiceRequestDetailController,
   type RequestDialog,
 } from '@/controllers/useServiceRequestsController';
-import { PRIORITY_LABEL, PRIORITY_TONE, STATUS_LABEL, STATUS_TONE } from '@/models/labels';
+import {
+  PAYMENT_METHOD_LABEL,
+  PAYMENT_STATUS_LABEL,
+  PAYMENT_STATUS_TONE,
+  PRIORITY_LABEL,
+  PRIORITY_TONE,
+  STATUS_LABEL,
+  STATUS_TONE,
+} from '@/models/labels';
 import type { ServiceRequest, User } from '@/models/types';
 import { formatCurrency, formatDate, formatDateTime, formatDocument, formatQuantity, vehicleLabel } from '@/utils/format';
+import { PaymentDialog } from '../../components/PaymentDialog';
 import { RequestFormDialog } from '../../components/RequestFormDialog';
 import {
   Badge,
@@ -222,11 +233,17 @@ export function RequestDetailPage() {
                     <Play /> Iniciar atendimento
                   </Button>
                 )}
-                {c.can.complete && (
-                  <Button onClick={() => c.openDialog('complete')}>
-                    <CircleCheck /> Concluir e dar baixa
-                  </Button>
-                )}
+                {c.can.complete &&
+                  (c.paymentBlocksCompletion ? (
+                    <S.Callout $tone="warning">
+                      <Banknote aria-hidden />
+                      <div>A oficina exige o pagamento para encerrar. Registre o pagamento para concluir.</div>
+                    </S.Callout>
+                  ) : (
+                    <Button onClick={() => c.openDialog('complete')}>
+                      <CircleCheck /> Concluir e dar baixa
+                    </Button>
+                  ))}
                 {c.can.assign && (
                   <Button variant="secondary" onClick={() => c.openDialog('assign')}>
                     <UserCheck /> {r.assignee ? 'Trocar responsável' : 'Definir responsável'}
@@ -245,6 +262,45 @@ export function RequestDetailPage() {
                 {c.can.cancel && (
                   <Button variant="outline" onClick={() => c.openDialog('cancel')}>
                     <Ban /> Cancelar solicitação
+                  </Button>
+                )}
+              </S.Actions>
+            </Card>
+          )}
+
+          {r.payment.status !== 'NONE' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pagamento</CardTitle>
+                <Badge $tone={PAYMENT_STATUS_TONE[r.payment.status]}>{PAYMENT_STATUS_LABEL[r.payment.status]}</Badge>
+              </CardHeader>
+              <S.Actions>
+                {r.payment.status === 'PAID' && r.payment.paidAt ? (
+                  <S.InvoiceLine>
+                    <Banknote aria-hidden />
+                    <div>
+                      <strong>
+                        {r.payment.method ? PAYMENT_METHOD_LABEL[r.payment.method] : 'Pago'} · {formatDate(r.payment.paidAt)}
+                      </strong>
+                      <small>
+                        {r.payment.confirmedBy ? `Registrado por ${r.payment.confirmedBy.name}` : 'Pagamento registrado'}
+                        {r.payment.notes ? ` — ${r.payment.notes}` : ''}
+                      </small>
+                    </div>
+                  </S.InvoiceLine>
+                ) : (
+                  <p>
+                    {formatCurrency(r.totals?.total ?? 0)} a receber. O cliente vê o valor e a chave PIX da oficina no aplicativo.
+                  </p>
+                )}
+                {c.can.payment && (
+                  <Button onClick={() => c.openDialog('payment')}>
+                    <Banknote /> Registrar pagamento
+                  </Button>
+                )}
+                {c.can.undoPayment && (
+                  <Button variant="ghost" onClick={c.undoPayment} loading={c.paymentBusy}>
+                    <Undo2 /> Desfazer pagamento
                   </Button>
                 )}
               </S.Actions>
@@ -341,7 +397,15 @@ export function RequestDetailPage() {
       {c.dialog === 'edit' && (
         <RequestFormDialog request={r} staff={c.staff} busy={c.busy} onSubmit={c.update} onClose={c.closeDialog} />
       )}
-      {c.dialog && c.dialog !== 'edit' && (
+      {c.dialog === 'payment' && (
+        <PaymentDialog
+          amount={r.totals?.total ?? 0}
+          busy={c.paymentBusy}
+          onConfirm={c.registerPayment}
+          onClose={c.closeDialog}
+        />
+      )}
+      {c.dialog && c.dialog !== 'edit' && c.dialog !== 'payment' && (
         <ActionDialog
           kind={c.dialog}
           request={r}
@@ -403,7 +467,7 @@ function Timeline({ request: r }: { request: ServiceRequest }) {
   );
 }
 
-type ActionKind = Exclude<RequestDialog, 'edit' | null>;
+type ActionKind = Exclude<RequestDialog, 'edit' | 'payment' | null>;
 
 const ACTION_COPY: Record<ActionKind, { title: string; description: string; confirm: string }> = {
   approve: {

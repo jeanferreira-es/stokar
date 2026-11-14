@@ -7,8 +7,8 @@ import { Screen } from '../../components/ui';
 export function StaffChatScreen({ route }: RootScreenProps<'ChatThread'>) {
   const thread = useChatThread(route.params.conversationId);
   return (
-    <Screen scroll={false}>
-      <ChatView thread={thread} staff emptyText="Escreva para iniciar a conversa com o cliente." keyboardOffset={96} />
+    <Screen scroll={false} avoidKeyboard={false}>
+      <ChatView thread={thread} staff emptyText="Escreva para iniciar a conversa com o cliente." />
     </Screen>
   );
 }
