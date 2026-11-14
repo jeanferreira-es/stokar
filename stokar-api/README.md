@@ -49,9 +49,45 @@ Gere os segredos JWT com:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-Para produção: `npm run compile` e `npm start` (servidor Node) ou o deploy na Vercel descrito abaixo.
+Para produção: `npm run build` e `npm start` (servidor Node), o deploy no Render ou o deploy na Vercel descritos abaixo.
 
-## 2. Deploy na Vercel
+## 2. Deploy no Render
+
+O repositório tem um **Blueprint** (`render.yaml`, na raiz) que já configura o serviço.
+
+1. Crie o banco: no Render, **New → Postgres** (ou use Neon/Supabase). Copie a connection string.
+2. **New → Blueprint**, escolha o repositório e confirme. O Render pede os valores marcados no `render.yaml`:
+
+   | Variável | Valor |
+   |---|---|
+   | `DATABASE_URL` | Postgres do Render: a **Internal Database URL**. Outro provedor: a URL dele |
+   | `DB_SSL` | `false` com a Internal URL do Render; `true` com banco externo (Neon, Supabase) |
+   | `CORS_ORIGIN` | domínio(s) do site, separados por vírgula (ex.: `https://stokar.vercel.app`) |
+
+   `JWT_SECRET` e `JWT_REFRESH_SECRET` são gerados automaticamente. Para SMTP, webhook ou `ALLOW_*`,
+   adicione as variáveis depois em **Environment** (lista completa no `.env.example`).
+3. Aguarde o deploy e teste `https://SEU-SERVICO.onrender.com/api/health` e `/api/docs`.
+4. Crie o administrador: cadastre-se pelo site (o primeiro usuário vira `ADMIN`) ou, no **Shell** do serviço,
+   rode `SEED_ADMIN_EMAIL=... SEED_ADMIN_PASSWORD=... npm run seed:prod`.
+   Depois disso, considere `ALLOW_PUBLIC_REGISTRATION=false` para ninguém mais se cadastrar como equipe pelo site.
+
+Sem o Blueprint, crie um **Web Service** com:
+
+| Campo | Valor |
+|---|---|
+| Root Directory | `stokar-api` |
+| Build Command | `npm ci --include=dev && npm run build` |
+| Start Command | `npm start` |
+| Health Check Path | `/api/health` |
+
+**Migrations:** com `DB_MIGRATIONS_RUN=true` (padrão), a API aplica as pendentes ao iniciar. Para controlar isso no deploy,
+use `DB_MIGRATIONS_RUN=false` e `npm run migration:run:prod` como *Pre-Deploy Command* (planos pagos).
+Para desfazer a última: `npm run migration:revert:prod` (no Shell).
+
+**Plano gratuito:** o serviço "dorme" depois de ~15 minutos sem acesso; a primeira requisição seguinte leva de 30 a 60 s.
+A versão do Node vem do `.node-version` (22). O `PORT` é definido pelo Render — não configure.
+
+## 3. Deploy na Vercel
 
 1. Crie um banco PostgreSQL (Neon, Supabase, Vercel Postgres/Marketplace etc.) e copie a connection string.
    Em ambiente serverless prefira a URL **com pooling** (ex.: a URL "pooled" do Neon ou a porta 6543 do Supabase).
@@ -71,7 +107,7 @@ Para produção: `npm run compile` e `npm start` (servidor Node) ou o deploy na 
 
 O `vercel.json` redireciona todas as rotas para a função `api/index.ts`, que exporta o app Express.
 
-## 3. Perfis de acesso
+## 4. Perfis de acesso
 
 | Perfil | O que pode fazer |
 |---|---|
@@ -81,7 +117,7 @@ O `vercel.json` redireciona todas as rotas para a função `api/index.ts`, que e
 | `REQUESTER` | Consultar produtos, abrir e acompanhar **as próprias** solicitações |
 | `CLIENT` | Cliente da oficina, pelo aplicativo: pede serviços, cadastra veículos, acompanha o andamento, baixa as notas e conversa com a oficina. Não acessa estoque nem cadastros internos |
 
-## 4. Autenticação
+## 5. Autenticação
 
 Envie o access token em todas as rotas protegidas:
 
@@ -92,7 +128,7 @@ Authorization: Bearer <accessToken>
 - O access token expira em 15 min (`JWT_EXPIRES_IN`); use `POST /api/auth/refresh` com o `refreshToken` (7 dias) para renovar.
 - Logout, troca de senha, mudança de perfil ou desativação **invalidam imediatamente** todos os tokens do usuário.
 
-## 5. Endpoints
+## 6. Endpoints
 
 Base: `/api`. Listagens aceitam `page` e `limit` (máx. 100) e devolvem `{ items, meta }`.
 Erros seguem o formato `{ "error": { "status", "message", "details?" } }`.
@@ -221,7 +257,7 @@ em intervalos curtos. Veja todas as rotas em `/api/docs`.
 | GET | `/reports/summary` | equipe | Totais de estoque, solicitações por status e movimentações dos últimos 30 dias |
 | GET | `/health` | público | Verifica API e banco |
 
-## 6. Sistema de notificações
+## 7. Sistema de notificações
 
 Toda notificação é gravada no banco para o destinatário (canal "in-app") e, se configurado, também enviada por:
 
@@ -239,7 +275,7 @@ Toda notificação é gravada no banco para o destinatário (canal "in-app") e, 
 O alerta de estoque baixo só dispara quando o saldo **cruza** o mínimo, para não repetir a cada saída.
 Falhas em e-mail/webhook são registradas no log e não interrompem a operação.
 
-## 7. Estrutura
+## 8. Estrutura
 
 ```
 api/index.ts                 Entrada serverless (Vercel)
@@ -255,7 +291,7 @@ src/services/                Regras de estoque, preços, notas em PDF e notifica
 requests.http                Exemplos de chamadas (extensão REST Client)
 ```
 
-## 8. Alterando o banco
+## 9. Alterando o banco
 
 1. Edite/crie a entidade em `src/entities` (e registre em `src/entities/index.ts`).
 2. `npm run migration:generate -- src/database/migrations/NomeDaMudanca`
@@ -263,12 +299,14 @@ requests.http                Exemplos de chamadas (extensão REST Client)
 
 As listas de entidades e migrations são explícitas (sem glob) de propósito: é o que garante o funcionamento no bundle da Vercel.
 
-## 9. Scripts
+## 10. Scripts
 
 | Script | Descrição |
 |---|---|
 | `npm run dev` | Servidor local com reload |
 | `npm run typecheck` | Checagem de tipos |
-| `npm run compile` + `npm start` | Build e execução fora da Vercel |
-| `npm run migration:run` / `migration:revert` / `migration:generate` | Migrations |
+| `npm run build` (ou `compile`) + `npm start` | Build em `dist/` e execução (Render ou qualquer servidor Node) |
+| `npm run migration:run` / `migration:revert` / `migration:generate` | Migrations em desenvolvimento (via ts-node) |
+| `npm run migration:run:prod` / `migration:revert:prod` | Migrations em produção, a partir do `dist` (rode depois do build) |
 | `npm run seed` | Cria o administrador (com `SEED_SAMPLE_CATALOG=true`, também um catálogo de serviços de exemplo) |
+| `npm run seed:prod` | O mesmo seed, a partir do `dist` (produção) |

@@ -3,6 +3,15 @@
 Segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 A versão fica em `package.json` e em `src/config/version.ts` (exibida em `/` e no Swagger).
 
+## 1.1.2 — 2026-11-13
+
+### Adicionado
+- Deploy no Render: `render.yaml` (Blueprint) na raiz do repositório, `.node-version` e seção no README.
+- Scripts de produção: `build`, `migration:run:prod`, `migration:revert:prod` e `seed:prod` (rodam a partir do `dist`, sem ts-node).
+
+### Corrigido
+- `migration:revert` da migration da oficina falhava ao voltar o tipo `user_role` (default da coluna e perfis `CLIENT`).
+
 ## 1.1.1 — 2026-11-13
 
 ### Alterado

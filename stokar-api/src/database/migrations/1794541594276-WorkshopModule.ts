@@ -76,10 +76,15 @@ export class WorkshopModule1794541594276 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "conversations" DROP CONSTRAINT "FK_3a9ae579e61e81cc0e989afeb4a"`);
         await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "FK_c7bc1ffb56c570f42053fa7503b"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_1f899159d1935fa7ff19f06d73"`);
+        // Clientes do app não existem no esquema anterior: viram solicitantes inativos
+        await queryRunner.query(`UPDATE "users" SET "role" = 'REQUESTER', "active" = false WHERE "role" = 'CLIENT'`);
         await queryRunner.query(`CREATE TYPE "public"."user_role_old" AS ENUM('ADMIN', 'MANAGER', 'OPERATOR', 'REQUESTER')`);
+        // O default precisa sair antes da troca de tipo (o Postgres não converte o default sozinho)
+        await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" DROP DEFAULT`);
         await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" TYPE "public"."user_role_old" USING "role"::"text"::"public"."user_role_old"`);
         await queryRunner.query(`DROP TYPE "public"."user_role"`);
         await queryRunner.query(`ALTER TYPE "public"."user_role_old" RENAME TO "user_role"`);
+        await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'REQUESTER'`);
         await queryRunner.query(`ALTER TABLE "service_requests" DROP COLUMN "discount"`);
         await queryRunner.query(`ALTER TABLE "service_requests" DROP COLUMN "origin"`);
         await queryRunner.query(`ALTER TABLE "service_requests" DROP COLUMN "vehicle_id"`);
