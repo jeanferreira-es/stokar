@@ -1,0 +1,30 @@
+# Dependências
+node_modules/
+
+# Build (npm run build) e cache do Vite
+dist/
+dist-ssr/
+*.tsbuildinfo
+.vite/
+
+# Variáveis de ambiente — só o .env.example vai para o git
+.env
+.env.*
+!.env.example
+
+# Vercel / Netlify
+.vercel/
+.netlify/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testes
+coverage/
+
+# Sistema operacional e editores
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

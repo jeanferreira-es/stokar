@@ -1,0 +1,143 @@
+### Exemplos para a extensão "REST Client" (VS Code) ou similar
+@base = http://localhost:3000/api
+@token = COLE_AQUI_O_ACCESS_TOKEN
+
+### Cadastro (o primeiro usuário vira ADMIN)
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{ "name": "Admin", "email": "admin@exemplo.com", "password": "troque-esta-senha" }
+
+### Login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@exemplo.com", "password": "troque-esta-senha" }
+
+### Criar produto
+POST {{base}}/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "sku": "CABO-01", "name": "Cabo flexível 2,5mm", "unit": "M", "minQuantity": 20 }
+
+### Entrada de estoque
+POST {{base}}/stock/entries
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "productId": "UUID_DO_PRODUTO", "quantity": 100, "unitCost": 2.5, "document": "NF-123" }
+
+### Saída de estoque
+POST {{base}}/stock/exits
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "productId": "UUID_DO_PRODUTO", "quantity": 10, "reason": "Consumo interno" }
+
+### Produtos com estoque baixo
+GET {{base}}/products?lowStock=true
+Authorization: Bearer {{token}}
+
+### Abrir solicitação de serviço
+POST {{base}}/service-requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Trocar disjuntor da sala 2",
+  "description": "O disjuntor desarma ao ligar o ar-condicionado.",
+  "priority": "HIGH",
+  "items": [{ "productId": "UUID_DO_PRODUTO", "quantity": 1 }]
+}
+
+### Aprovar / iniciar / concluir
+POST {{base}}/service-requests/UUID_DA_SOLICITACAO/approve
+Authorization: Bearer {{token}}
+
+###
+POST {{base}}/service-requests/UUID_DA_SOLICITACAO/start
+Authorization: Bearer {{token}}
+
+###
+POST {{base}}/service-requests/UUID_DA_SOLICITACAO/complete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "resolutionNotes": "Disjuntor substituído." }
+
+### Notificações não lidas
+GET {{base}}/notifications?unread=true
+Authorization: Bearer {{token}}
+
+### Painel
+GET {{base}}/reports/summary
+Authorization: Bearer {{token}}
+
+### ---------- Oficina ----------
+
+### Tipo de serviço
+POST {{base}}/service-types
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Pneus" }
+
+### Serviço com valor
+POST {{base}}/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Trocar pneu", "price": 80, "serviceTypeId": "UUID_DO_TIPO", "estimatedMinutes": 30 }
+
+### Cliente (empresa)
+POST {{base}}/customers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "type": "COMPANY", "name": "Transportes Exemplo LTDA", "tradeName": "Exemplo", "document": "11.222.333/0001-81" }
+
+### Acesso ao aplicativo para o cliente
+POST {{base}}/customers/UUID_DO_CLIENTE/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Maria", "email": "maria@exemplo.com", "password": "troque-esta-senha" }
+
+### Contrato com tabela de preços
+POST {{base}}/contracts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "UUID_DO_CLIENTE",
+  "title": "Manutenção de frota",
+  "startDate": "2026-01-01",
+  "discountPercent": 10,
+  "services": [{ "serviceId": "UUID_DO_SERVICO", "price": 60 }]
+}
+
+### Registrar um serviço para o cliente (equipe)
+POST {{base}}/service-requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Troca dos pneus dianteiros",
+  "description": "Cliente relatou desgaste irregular",
+  "customerId": "UUID_DO_CLIENTE",
+  "contractId": "UUID_DO_CONTRATO",
+  "services": [{ "serviceId": "UUID_DO_SERVICO", "quantity": 2 }],
+  "items": [{ "productId": "UUID_DO_PRODUTO", "quantity": 2 }]
+}
+
+### Emitir a nota (solicitação concluída)
+POST {{base}}/invoices
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "serviceRequestId": "UUID_DA_SOLICITACAO", "notes": "Pago via PIX." }
+
+### Baixar a nota em PDF
+GET {{base}}/invoices/UUID_DA_NOTA/pdf
+Authorization: Bearer {{token}}

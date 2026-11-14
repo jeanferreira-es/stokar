@@ -1,0 +1,28 @@
+# Stokar — regras gerais do repositório
+# (cada projeto tem o seu próprio .gitignore com as regras específicas)
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores e IDEs
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# Dependências e logs em qualquer pasta
+node_modules/
+*.log
+
+# Variáveis de ambiente (segredos) — só os .env.example vão para o git
+.env
+.env.*
+!.env.example
+
+# Arquivos temporários
+*.tmp
+*.tgz
+.cache/

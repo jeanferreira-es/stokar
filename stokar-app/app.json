@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Stokar",
+    "slug": "stokar",
+    "scheme": "stokar",
+    "version": "1.1.0",
+    "runtimeVersion": { "policy": "appVersion" },
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#E9ECEF",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stokar.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.stokar.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F26A0F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#E9ECEF",
+          "dark": { "backgroundColor": "#101418" }
+        }
+      ]
+    ]
+  }
+}

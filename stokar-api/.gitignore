@@ -1,0 +1,36 @@
+# Dependências
+node_modules/
+
+# Build (npm run compile)
+dist/
+*.tsbuildinfo
+
+# Variáveis de ambiente — contêm DATABASE_URL, segredos JWT e senha SMTP.
+# Só o .env.example (sem valores reais) vai para o git.
+.env
+.env.*
+!.env.example
+
+# Vercel (ligação local com o projeto e builds)
+.vercel/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Banco local, dumps e backups
+*.sql
+*.dump
+pgdata/
+
+# Notas em PDF geradas em testes
+*.pdf
+
+# Testes
+coverage/
+
+# Sistema operacional e editores
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

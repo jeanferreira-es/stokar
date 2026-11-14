@@ -1,0 +1,57 @@
+# Dependências
+node_modules/
+
+# Expo (cache local, exports e tipos gerados)
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Pastas nativas geradas pelo "expo prebuild" (o EAS gera de novo a cada build)
+/ios
+/android
+.kotlin/
+
+# Builds baixados do EAS
+*.apk
+*.aab
+*.ipa
+
+# Credenciais de assinatura — NUNCA versionar
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+credentials.json
+google-services.json
+GoogleService-Info.plist
+
+# Variáveis de ambiente — só o .env.example vai para o git
+.env
+.env.*
+!.env.example
+
+# Metro
+.metro-health-check*
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# TypeScript
+*.tsbuildinfo
+*.orig.*
+
+# Testes
+coverage/
+
+# Sistema operacional e editores
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
