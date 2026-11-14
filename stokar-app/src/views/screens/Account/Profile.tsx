@@ -7,7 +7,7 @@ import { isClient } from '@/models/permissions';
 import { customersService } from '@/models/services/api';
 import type { RootScreenProps } from '@/navigation/types';
 import { emptyToNull, formatDocument } from '@/utils/format';
-import { Button, Card, Muted, Screen, Sheet, SheetBody, Subheading, TextField } from '../../components/ui';
+import { Button, Card, Field, Muted, Screen, Segmented, Sheet, SheetBody, Subheading, TextField } from '../../components/ui';
 
 /** "Meus dados": dados de acesso e, para o cliente, o cadastro usado nas notas. */
 export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
@@ -19,6 +19,7 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
 
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone ?? '');
+  const [emailNotifications, setEmailNotifications] = useState(user.emailNotifications);
   const [customerName, setCustomerName] = useState('');
   const [document, setDocument] = useState('');
   const [address, setAddress] = useState('');
@@ -49,7 +50,7 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
 
     setSaving(true);
     try {
-      await updateProfile({ name: name.trim(), phone: emptyToNull(phone) });
+      await updateProfile({ name: name.trim(), phone: emptyToNull(phone), emailNotifications });
       if (client && profile) {
         setProfile(
           await customersService.updateMe({
@@ -87,6 +88,16 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
         <TextField label="Nome" value={name} onChangeText={setName} error={errors.name} autoComplete="name" />
         <TextField label="Telefone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
         <TextField label="E-mail" value={user.email} editable={false} hint="Para trocar o e-mail, fale com a oficina" />
+        <Field label="Avisos por e-mail" hint="Andamento dos serviços, notas e mensagens. Os avisos no aplicativo continuam.">
+          <Segmented<'on' | 'off'>
+            value={emailNotifications ? 'on' : 'off'}
+            onChange={(v) => setEmailNotifications(v === 'on')}
+            options={[
+              { value: 'on', label: 'Receber' },
+              { value: 'off', label: 'Não receber' },
+            ]}
+          />
+        </Field>
       </Card>
 
       {client && profile && (
@@ -113,8 +124,9 @@ export function ProfileScreen({ navigation }: RootScreenProps<'Profile'>) {
         <Card>
           <Subheading>Excluir conta</Subheading>
           <Muted>
-            Seu acesso é encerrado e seu nome, e-mail e telefone são apagados da conta. O histórico de serviços e notas continua com a
-            oficina, que precisa guardá-lo por obrigação legal.
+            Seu acesso é encerrado e seu nome, e-mail e telefone são apagados da conta de acesso. O cadastro usado nas notas (nome, CPF ou
+            CNPJ e endereço), os veículos, o histórico de serviços, as notas e as conversas continuam com a oficina pelos prazos da
+            Política de Privacidade.
           </Muted>
           <Button label="Excluir minha conta" variant="danger" icon={Trash2} onPress={() => setDeleting(true)} />
         </Card>
