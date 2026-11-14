@@ -2,7 +2,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { AuthTokens } from '../types';
 import { tokenExpiresAt, tokenStorage } from './tokenStorage';
 
-export const API_URL = String(import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
+export const API_URL = String(import.meta.env.API_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
 
 /** Erro normalizado a partir do formato `{ error: { status, message, details } }` da API. */
 export class ApiError extends Error {
