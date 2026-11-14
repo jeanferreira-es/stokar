@@ -31,8 +31,8 @@ function AuthScreen({ title, subtitle, children }: { title: string; subtitle: st
               <BellRing aria-hidden /> Alertas quando o estoque chega ao mínimo
             </li>
           </S.Flow>
-          <h1>Tudo que entra e sai, no lugar certo.</h1>
-          <p>Controle do almoxarifado para equipes de manutenção e operação.</p>
+          <h1>Sua oficina organizada, do estoque à nota.</h1>
+          <p>Peças, serviços, clientes e contratos em um só lugar, para a oficina trabalhar sem papelada.</p>
         </div>
       </S.Brand>
 
